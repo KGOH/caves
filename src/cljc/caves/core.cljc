@@ -40,6 +40,11 @@
     (let [b (if (< b a) ##Inf b)] ;; TODO: better way compare segments of circle
       (and (<= a x) (< x b)))))
 
+(defn angle-diff [a1 a2]
+  (-> (quil/atan2 (quil/sin (- a1 a2))
+                  (quil/cos (- a1 a2)))
+      quil/abs))
+
 
 (defn cross* [[x1 y1] [x2 y2]]
   (- (* x1 y2) (* y1 x2)))
@@ -61,12 +66,12 @@
       (map + p (map (partial * t) r)))))
 
 
-(defn generate-slice [{:keys [e r] :as state} & [seed]]
+(defn generate-slice [{:keys [approx e r] :as state} & [seed]]
   (let [[main-curve & curves]
         (for [{:keys [points-cnt d]} (:curves state)]
           (for [angle (range 0 rad360 (/ quil/TWO-PI points-cnt))]
-            (let [d (-> (normal-rand) quil/abs (* d) int -)]
-              {:r (+ r d), :d d, :angle angle})))
+            (let [d' (-> (normal-rand) quil/abs (* d) int -)]
+              {:r (+ r d'), :d d', :max-d d :angle angle})))
         groups (as-> main-curve $
                  (partition 2 1 [(first main-curve)] $)
                  (map (partial zipmap [:start :end]) $))
@@ -87,33 +92,44 @@
                     (sort-by (comp :angle :start))
                     (mapcat (fn [{:keys [start end points]}]
                               (->> points
-                                   (map (fn [{:keys [d angle] :as p}]
-                                          (let [x (-> (segment&ray-intersection
-                                                       [(polar->cartesian start)
-                                                        (polar->cartesian end)]
-                                                       [[0 0] angle])
-                                                      cartesian->polar)]
-                                            (assoc p :r (+ (:r x) d)))))
-                                   (cons start)))))]
-    (map (partial map (comp polar->cartesian (partial merge {:e [e (- e)]})))
+                                   (keep (fn [{:keys [d max-d angle] :as p}]
+                                           (when (and (< approx (angle-diff angle (:angle start)))
+                                                      (< approx (angle-diff angle (:angle end))))
+                                             (let [x (-> (segment&ray-intersection
+                                                          [(polar->cartesian start)
+                                                           (polar->cartesian end)]
+                                                          [[0 0] angle])
+                                                         cartesian->polar)]
+                                               (assoc p :r (+ (:r x) (/ max-d 2) d))))))
+                                   (cons start))))
+                    (map (partial merge {:e [e (- e)]}))
+                    (sort-by :angle))]
+    (map (partial map polar->cartesian)
+         #_[curve]
          (cons curve (cons main-curve curves)))))
 
 
 (def default-state
-  {:background [0]
-   :color      [255]
-   :r          300
-   :weight     5
-   :e          30
-   :e-d        2.5
-   :e-lim      30
-   :curves     [{:d 30, :points-cnt 18}
-                {:d 10, :points-cnt 60}]})
+  {:fps         5
+   :mode        :rgb
+   :background  [0]
+   :color       [255]
+   :approx      (degree->radian 10)
+   :r           300
+   :weight      4
+   :e           30
+   :e-d         2.5
+   :e-lim       30
+   :debug       false
+   :debug-state false
+   :curves      [{:d 30, :points-cnt 9}
+                 {:d 10, :points-cnt 30}
+                 {:d 50, :points-cnt 7}]})
 
 
 (defn update-state [state]
   (as-> state $
-    #_#_#_#_(assoc $ :points (generate-slice $))
+    (assoc $ :points (generate-slice $))
     (update $ :e-d (if (< (quil/abs (:e $)) (:e-lim $))
                      identity
                      -))
@@ -124,24 +140,30 @@
 
 
 (defn setup []
-  (quil/frame-rate 5)
-  (quil/color-mode :rgb)
   (update-state default-state))
 
 
 (defn draw-state [state]
+  (quil/frame-rate (:fps state))
+  (quil/color-mode (:mode state))
   (apply quil/background (:background state))
   (apply quil/fill   (:color state))
   (apply quil/stroke (:color state))
   (quil/stroke-weight (:weight state))
   (quil/with-translation [(/ (quil/width) 2), (/ (quil/height) 2)]
-    (doseq [[color points] (reverse (map vector [[255] [0 100 255] [0 205 0]] (:points state)))]
+    (doseq [[color points] (->> (cond-> (:points state)
+                                  (not (:debug state))
+                                  (->> (take 1)))
+                                (map vector
+                                     [[255] [0 100 255] [0 205 0] [255 0 0]])
+                                reverse)]
       (apply quil/fill   color)
       (apply quil/stroke color)
-      (do
-        (quil/stroke-weight 10)
-        (doseq [[x y] points]
-          (quil/ellipse x y (:weight state) (:weight state))))
+      (when (:debug state)
+        (do
+          (quil/stroke-weight 10)
+          (doseq [[x y] points]
+            (quil/ellipse x y (:weight state) (:weight state)))))
       #_(doseq [[p1 p2] (partition 2 1 points points)]
           (quil/line p1 p2))
       (do
@@ -162,7 +184,7 @@
   (let [info (dissoc state :points)
         info (str/join \newline (mapv (partial str/join ": ") info))]
     (quil/text-font (quil/create-font "Iosevka Regular" 20) 20)
-    (when-not (empty? info)
+    (when (and (:debug-state state) (seq info))
       (apply quil/fill (:color state))
       (quil/text info 15 15))))
 
@@ -177,4 +199,4 @@
     :update     update-state
     :draw       draw-state
     :features   [:keep-on-top]
-    :middleware [quil.mw/fun-mode #_(mw! :draw show-info)]))
+    :middleware [quil.mw/fun-mode (mw! :draw show-info)]))
