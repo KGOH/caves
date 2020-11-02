@@ -1,0 +1,6 @@
+{:paths [:clj-paths]
+ :deps {org.clojure/clojure       {:mvn/version "LATEST"}
+        org.clojure/clojurescript {:mvn/version "LATEST"}
+        quil/quil                 {:mvn/version "LATEST"}
+        net.mikera/core.matrix    {:mvn/version "LATEST"}}
+ :aliases {:clj-paths ["src/clj" "src/cljc"]}}
