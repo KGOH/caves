@@ -84,32 +84,37 @@
     :background [0]
     :color      [255]
     :weight     3
-    :debug      {:stop   false
+    :debug      {:reset  false
+                 :stop   false
                  :curves false
                  :points false
                  :state  false}}})
 
 
 (defn update-state [state]
-  (if (get-in state [:settings :debug :stop])
-    (merge state (select-keys default-state [:settings]))
-    (as-> state $
-      (assoc $ :points (generate-slice $))
-      (update $ :eccentricity-deviation
-              (if (math/diff-is-almost-zero?
-                   (:eccentricity-approx state)
-                   (:eccentricity-limit state)
-                   (quil/abs (:eccentricity state)))
-                identity
-                -))
-      (update $ :eccentricity
-              + (:eccentricity-deviation $)
-              (math/rand-num (- (:eccentricity-deviation $))
-                             (:eccentricity-deviation $)))
-      (update $ :eccentricity
-              (partial math/constrain (- (:eccentricity-limit $))
-                       (:eccentricity-limit $)))
-      (merge $ (select-keys default-state [:settings])))))
+  (as-> state $
+    (merge $ (select-keys default-state [:settings]))
+    (cond-> $
+      (not (get-in $ [:settings :debug :stop]))
+      (as-> $
+        (assoc $ :points (generate-slice $))
+        (update $ :eccentricity-deviation
+                (if (math/diff-is-almost-zero?
+                     (:eccentricity-approx state)
+                     (:eccentricity-limit state)
+                     (quil/abs (:eccentricity state)))
+                  identity
+                  -))
+        (update $ :eccentricity
+                + (:eccentricity-deviation $)
+                (math/rand-num (- (:eccentricity-deviation $))
+                               (:eccentricity-deviation $)))
+        (update $ :eccentricity
+                (partial math/constrain (- (:eccentricity-limit $))
+                         (:eccentricity-limit $))))
+
+      (get-in $ [:settings :debug :reset])
+      (merge default-state))))
 
 
 (defn draw-state! [state]
