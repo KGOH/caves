@@ -68,66 +68,76 @@
 
 
 (def default-state
-  {:fps                    5
-   :mode                   :rgb
-   :debug                  false
-   :debug-state            false
-   :background             [0]
-   :color                  [255]
-   :approx                 (/ quil/TWO-PI 35) ;; number here must be greater than max points count
-   :weight                 4
+  {:approx                 (/ quil/TWO-PI 35) ;; number here must be greater than max points count
    :radius                 300
    :eccentricity           0.5
    :eccentricity-deviation 0.01
    :eccentricity-limit     0.8
    :eccentricity-approx    0.00001
    :curves                 [{:deviation 50, :points-count 9}
-                            {:deviation 10, :points-count 30}]})
+                            {:deviation 10, :points-count 30}]
+   :settings
+   {:title      "Caves"
+    :size       [800 800]
+    :fps        5
+    :mode       :rgb
+    :background [0]
+    :color      [255]
+    :weight     3
+    :debug      {:stop   false
+                 :curves false
+                 :points false
+                 :state  false}}})
 
 
 (defn update-state [state]
-  (as-> state $
-    #_(merge $ default-state)
-    (assoc $ :points (generate-slice $))
-    (update $ :eccentricity-deviation
-            (if (math/diff-is-almost-zero?
-                 (:eccentricity-approx state)
-                 (:eccentricity-limit state)
-                 (quil/abs (:eccentricity state)))
-              identity
-              -))
-    (update $ :eccentricity
-            + (:eccentricity-deviation $)
-            (math/rand-num (- (:eccentricity-deviation $))
-                           (:eccentricity-deviation $)))
-    (update $ :eccentricity
-            (partial math/constrain (- (:eccentricity-limit $))
-                     (:eccentricity-limit $)))))
+  (if (get-in state [:settings :debug :stop])
+    (merge state (select-keys default-state [:settings]))
+    (as-> state $
+      (assoc $ :points (generate-slice $))
+      (update $ :eccentricity-deviation
+              (if (math/diff-is-almost-zero?
+                   (:eccentricity-approx state)
+                   (:eccentricity-limit state)
+                   (quil/abs (:eccentricity state)))
+                identity
+                -))
+      (update $ :eccentricity
+              + (:eccentricity-deviation $)
+              (math/rand-num (- (:eccentricity-deviation $))
+                             (:eccentricity-deviation $)))
+      (update $ :eccentricity
+              (partial math/constrain (- (:eccentricity-limit $))
+                       (:eccentricity-limit $)))
+      (merge $ (select-keys default-state [:settings])))))
 
 
 (defn draw-state! [state]
-  (quil/frame-rate (:fps state))
-  (quil/color-mode (:mode state))
-  (apply quil/background (:background state))
+  (apply quil/resize-sketch (get-in state [:settings :size]))
+  (quil/frame-rate (get-in state [:settings :fps]))
+  (quil/color-mode (get-in state [:settings :mode]))
+  (apply quil/background (get-in state [:settings :background]))
 
   (quil/with-translation [(/ (quil/width) 2), (/ (quil/height) 2)]
     (doseq [[color points]
             (->> (cond-> (:points state)
-                   (not (:debug state))
+                   (not (get-in state [:settings :debug :curves]))
                    (->> (take 1)))
                  (map vector
-                      [(:color state) [0 100 255] [0 205 0] [255 0 0]])
+                      [(get-in state [:settings :color]) [0 100 255] [0 205 0] [255 0 0]])
                  reverse)]
 
       (apply quil/fill   color)
       (apply quil/stroke color)
 
-      (when (:debug state)
+      (when (get-in state [:settings :debug :points])
         (quil/stroke-weight 10)
         (doseq [[x y] points]
-          (quil/ellipse x y (:weight state) (:weight state))))
+          (quil/ellipse x y
+                        (get-in state [:settings :weight])
+                        (get-in state [:settings :weight]))))
 
-      (quil/stroke-weight (:weight state))
+      (quil/stroke-weight (get-in state [:settings :weight]))
       (quil/no-fill)
       (quil/begin-shape)
       (doseq [p (take (+ 3 (count points))
@@ -137,11 +147,11 @@
 
 
 (defn show-info! [state]
-  (let [info (dissoc state :points)
-        info (str/join \newline (mapv (partial str/join ": ") info))]
+  (let [info (str/join \newline (mapv (partial str/join ": ") state))]
     (quil/text-font (quil/create-font "Iosevka Regular" 20) 20)
-    (when (and (:debug-state state) (seq info))
-      (apply quil/fill (:color state))
+    (when (and (get-in state [:settings :debug :state])
+               (seq info))
+      (apply quil/fill (get-in state [:settings :color]))
       (quil/text info 25 25))))
 
 
@@ -154,10 +164,11 @@
 
 (defn -main [& args]
   (quil/defsketch caves
-    :size       [800 800]
+    :title      (get-in default-state [:settings :title])
+    :size       (get-in default-state [:settings :size])
     :setup      #(update-state default-state)
     :update     update-state
     :draw       draw-state!
     :middleware [quil.mw/fun-mode
-                 (mw! :draw show-info!)
+                 (mw! :draw (comp show-info! #(dissoc % :points)))
                  (mw! :draw (partial record-gif! "caves" 10 5))]))
