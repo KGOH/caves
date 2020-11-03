@@ -3,7 +3,7 @@
             [quil.middleware :as quil.mw]
             [gil.core :as gil]
             [caves.math :as math]
-            [clojure.string :as str]))
+            [clojure.pprint :as pprint]))
 
 
 (defn make-groups
@@ -147,7 +147,7 @@
 
 
 (defn show-info! [state]
-  (let [info (str/join \newline (mapv (partial str/join ": ") state))]
+  (let [info (with-out-str (pprint/pprint state))]
     (quil/text-font (quil/create-font "Iosevka Regular" 20) 20)
     (when (and (get-in state [:settings :debug :state])
                (seq info))
