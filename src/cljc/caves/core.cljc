@@ -73,7 +73,7 @@
    :debug-state            false
    :background             [0]
    :color                  [255]
-   :approx                 (/ quil/TWO-PI 35) ;; number here mast be greater than max points count
+   :approx                 (/ quil/TWO-PI 35) ;; number here must be greater than max points count
    :weight                 4
    :radius                 300
    :eccentricity           0.5
@@ -104,7 +104,7 @@
                      (:eccentricity-limit $)))))
 
 
-(defn draw-state [state]
+(defn draw-state! [state]
   (quil/frame-rate (:fps state))
   (quil/color-mode (:mode state))
   (apply quil/background (:background state))
@@ -135,7 +135,7 @@
       (quil/end-shape))))
 
 
-(defn show-info [state]
+(defn show-info! [state]
   (let [info (dissoc state :points)
         info (str/join \newline (mapv (partial str/join ": ") info))]
     (quil/text-font (quil/create-font "Iosevka Regular" 20) 20)
@@ -152,5 +152,5 @@
     :size       [800 800]
     :setup      #(update-state default-state)
     :update     update-state
-    :draw       draw-state
-    :middleware [quil.mw/fun-mode (mw! :draw show-info)]))
+    :draw       draw-state!
+    :middleware [quil.mw/fun-mode (mw! :draw show-info!)]))

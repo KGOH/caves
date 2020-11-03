@@ -41,8 +41,11 @@
   "Checks if segment [a, b) contains x"
   [[a b] x]
   (when (and a b x)
-    (let [b (if (< b a) ##Inf b)] ;; TODO: better way compare segments of circle
-      (and (<= a x) (< x b)))))
+    (let [a'  (mod a quil/TWO-PI)
+          b'  (mod b quil/TWO-PI)
+          x'  (mod x quil/TWO-PI)
+          b'' (cond-> b' (< b' a') (+ quil/TWO-PI))]
+      (and (<= a' x') (< x' b'')))))
 
 
 (defn angle-diff [a1 a2]
