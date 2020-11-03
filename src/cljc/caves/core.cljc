@@ -44,16 +44,43 @@
        (cons start)))
 
 
+(defn gen-random-deviation [deviation & [seed]]
+  (-> (math/normal-rand) quil/abs (* deviation) int))
+
+
 (defn generate-curve [{:keys [radius points-count deviation]} & [seed]]
   (for [angle (range 0 quil/TWO-PI (/ quil/TWO-PI points-count))
-        :let  [rand-deviation (-> (math/normal-rand) quil/abs (* deviation) int -)]]
+        :let  [rand-deviation (- (gen-random-deviation deviation seed))]]
     {:radius        (+ radius rand-deviation)
      :deviation     rand-deviation
      :max-deviation deviation
      :angle         angle}))
 
 
-(defn generate-slice [{:keys [approx radius eccentricity curves]} & [seed]]
+(defn add-formation [points {:keys [rule max-count probability direction deviation]}]
+  (loop [[point & rest-points :as points] points
+         processed-points                 []
+         spawned-formations-count         0]
+    (cond
+      (or (>= spawned-formations-count max-count)
+          (nil? point))
+      (concat processed-points points)
+
+      (and (rule point) (math/normal-random-decision probability))
+      (recur rest-points
+             (conj processed-points
+                   (->> (map *
+                             direction
+                             (repeat (gen-random-deviation deviation)))
+                        (map + point)))
+             (inc spawned-formations-count))
+
+      :else (recur rest-points
+                   (conj processed-points point)
+                   spawned-formations-count))))
+
+
+(defn generate-slice [{:keys [approx radius eccentricity curves formations]} & [seed]]
   (let [[main-curve & curves]
         (map #(generate-curve (assoc % :radius radius) seed) curves)
 
@@ -62,18 +89,32 @@
              (sort-by ffirst)
              vals
              (mapcat (partial project-points-on-segment approx))
-             (sort-by :angle))]
-    (map (partial map (comp math/polar->cartesian (partial merge {:eccentricity eccentricity})))
-         (concat [points main-curve] curves))))
+             (sort-by :angle)
+             (map (comp math/polar->cartesian (partial merge {:eccentricity eccentricity}))))]
+    (cons (reduce add-formation points formations)
+          (map (partial map (comp math/polar->cartesian (partial merge {:eccentricity eccentricity})))
+               (cons main-curve curves)))))
 
 
 (def default-state
   {:approx                 (/ quil/TWO-PI 35) ;; number here must be greater than max points count
-   :radius                 300
+   :radius                 400
    :eccentricity           0.5
    :eccentricity-deviation 0.01
    :eccentricity-limit     0.8
    :eccentricity-approx    0.00001
+   :formations             [{:deviation     60
+                             :max-count     9
+                             :direction     [0 1]
+                             :probability   0.3
+                             :rule          (fn [[x y]] (and (> 75 y)
+                                                             (> 300 (quil/abs x))))}
+                            {:deviation     60
+                             :max-count     9
+                             :direction     [0 -1]
+                             :probability   0.3
+                             :rule          (fn [[x y]] (and (< -75 y)
+                                                             (> 300 (quil/abs x))))}]
    :curves                 [{:deviation 50, :points-count 9}
                             {:deviation 10, :points-count 30}]
 
@@ -83,7 +124,7 @@
 
    :settings
    {:title      "Caves"
-    :size       [800 800]
+    :size       [1000 1000]
     :fps        5
     :mode       :rgb
     :debug      {:reset  false

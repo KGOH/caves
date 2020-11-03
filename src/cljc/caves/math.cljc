@@ -11,6 +11,10 @@
   (+ a (rand (- b a))))
 
 
+(defn normal-random-decision [prob]
+  (<= prob (- 1.5 (quil/abs (normal-rand)))))
+
+
 (defn degree->radian [degree]
   (* quil/DEG-TO-RAD degree))
 
