@@ -7,6 +7,10 @@
   (first (matrix.random/sample-normal 1)))
 
 
+(defn rand-num [a b]
+  (+ a (rand (- b a))))
+
+
 (defn degree->radian [degree]
   (* quil/DEG-TO-RAD degree))
 
@@ -16,11 +20,16 @@
   (-> x (max a) (min b)))
 
 
-(defn polar->cartesian [{:keys [radius e angle]
-                         :or {radius 1, e [0 0]}}]
-  (let [[ex ey] e]
-    [(* (+ radius ex) (quil/cos angle))
-     (* (+ radius ey) (quil/sin angle))]))
+(defn polar->cartesian [{:keys [radius eccentricity angle]
+                         :or   {radius 1, eccentricity 0}}]
+  (let [radius**2    (quil/pow radius 2)
+        e**2         (quil/pow eccentricity 2)
+        minor-radius (quil/sqrt (- radius**2 (* radius**2 e**2)))]
+    (if (neg? eccentricity)
+      [(* minor-radius (quil/cos angle))
+       (* radius (quil/sin angle))]
+      [(* radius (quil/cos angle))
+       (* minor-radius (quil/sin angle))])))
 
 
 (defn cartesian->polar [[x y]]
@@ -60,3 +69,13 @@
                #_(<= 0 t 1)
                #_(<= 0 u 1))
       (map + p (map (partial * t) r)))))
+
+
+(defn angles-too-close? [approx angle1 angle2]
+  (< approx (angle-diff angle1 angle2)))
+
+
+(defn diff-is-almost-zero? [approx a b]
+  (> (- (max a b)
+        (min a b))
+     approx))

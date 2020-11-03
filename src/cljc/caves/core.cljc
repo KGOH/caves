@@ -5,9 +5,10 @@
             [clojure.string :as str]))
 
 
-(defn make-groups [main-curve]
-  (as-> main-curve $
-    (partition 2 1 [(first main-curve)] $)
+(defn make-groups
+  [curve]
+  (as-> curve $
+    (partition 2 1 [(first curve)] $)
     (map (partial zipmap [:start :end]) $)
     (interleave (map (juxt (comp :angle :start) (comp :angle :end))
                      $)
@@ -15,7 +16,7 @@
     (apply hash-map $)))
 
 
-(defn collect-group-points [groups curves]
+(defn populate-groups [groups points]
   (reduce (fn [acc {:keys [angle] :as pt}]
             (update-in acc
                        [(->> (keys acc)
@@ -25,82 +26,82 @@
                        (fnil conj [])
                        pt))
           groups
-          curves))
-
-
-(defn angles-too-close? [approx angle1 angle2]
-  (< approx (math/angle-diff angle1 angle2)))
+          points))
 
 
 (defn project-points-on-segment [filtering-approx {:keys [start end points]}]
   (->> points
-       (keep (fn [{:keys [d max-d angle] :as p}]
-               (when (every? (partial angles-too-close? filtering-approx angle)
+       (keep (fn [{:keys [deviation max-deviation angle] :as p}]
+               (when (every? (partial math/angles-too-close? filtering-approx angle)
                              [(:angle start) (:angle end)])
                  (let [x (-> (math/segment&ray-intersection
                               [(math/polar->cartesian start)
                                (math/polar->cartesian end)]
                               [[0 0] angle])
                              math/cartesian->polar)]
-                   (assoc p :radius (+ (:radius x) (/ max-d 2) d))))))
+                   (assoc p :radius (+ (:radius x) (/ max-deviation 2) deviation))))))
        (cons start)))
 
 
-(defn generate-curve [{:keys [points-cnt d]} radius & [seed]]
-  (for [angle (range 0 quil/TWO-PI (/ quil/TWO-PI points-cnt))
-        :let  [d' (-> (math/normal-rand) quil/abs (* d) int -)]]
-    {:radius (+ radius #_d')
-     :d     0#_d'
-     :max-d 0#_d
-     :angle angle}))
+(defn generate-curve [{:keys [radius points-count deviation]} & [seed]]
+  (for [angle (range 0 quil/TWO-PI (/ quil/TWO-PI points-count))
+        :let  [rand-deviation (-> (math/normal-rand) quil/abs (* deviation) int -)]]
+    {:radius        (+ radius rand-deviation)
+     :deviation     rand-deviation
+     :max-deviation deviation
+     :angle         angle}))
 
 
-(defn generate-slice [{:keys [approx radius e curves]} & [seed]]
-  (let [[main-curve & curves] (map #(generate-curve % radius seed) curves)
+(defn generate-slice [{:keys [approx radius eccentricity curves]} & [seed]]
+  (let [[main-curve & curves]
+        (map #(generate-curve (assoc % :radius radius) seed) curves)
 
-        curve
-        (->> (collect-group-points (make-groups main-curve)
-                                   (apply concat curves))
+        points
+        (->> (populate-groups (make-groups main-curve) (apply concat curves))
+             (sort-by ffirst)
              vals
-             (sort-by (comp :angle :start))
              (mapcat (partial project-points-on-segment approx))
              (sort-by :angle))]
-    (map (partial map (comp math/polar->cartesian (partial merge {:e [e (- e)]})))
-         (concat [curve main-curve] curves))))
+    (map (partial map (comp math/polar->cartesian (partial merge {:eccentricity eccentricity})))
+         (concat [points main-curve] curves))))
 
 
 (def default-state
-  {:fps         5
-   :mode        :rgb
-   :debug       true
-   :debug-state false
-   :background  [0]
-   :color       [255]
-   :approx      (math/degree->radian 10)
-   :weight      4
-   :radius      300
-   :e           30
-   :e-d         2.5
-   :e-lim       30
-   :curves      [{:d 30, :points-cnt 9}
-                 {:d 10, :points-cnt 30}
-                 #_{:d 50, :points-cnt 7}]})
+  {:fps                    5
+   :mode                   :rgb
+   :debug                  false
+   :debug-state            false
+   :background             [0]
+   :color                  [255]
+   :approx                 (/ quil/TWO-PI 35) ;; number here mast be greater than max points count
+   :weight                 4
+   :radius                 300
+   :eccentricity           0.5
+   :eccentricity-deviation 0.01
+   :eccentricity-limit     0.8
+   :eccentricity-approx    0.00001
+   :curves                 [{:deviation 50, :points-count 9}
+                            {:deviation 10, :points-count 30}]})
 
 
 (defn update-state [state]
   (as-> state $
+    #_(merge $ default-state)
     (assoc $ :points (generate-slice $))
-    (update $ :e-d (if (< (quil/abs (:e $)) (:e-lim $))
-                     identity
-                     -))
-    (update $ :e + (:e-d $) (->> (rand (* 2 (:e-d $)))
-                                 (- (:e-d $))))
-    (update $ :e (partial math/constrain (- (:e-lim $)) (:e-lim $)))
-    (merge $ default-state)))
-
-
-(defn setup []
-  (update-state default-state))
+    (update $ :eccentricity-deviation
+            (if (math/diff-is-almost-zero?
+                 (:eccentricity-approx state)
+                 (:eccentricity-limit state)
+                 (quil/abs (:eccentricity state)))
+              identity
+              -))
+    (update $ :eccentricity
+            + (:eccentricity-deviation $)
+            (math/rand-num (- (:eccentricity-deviation $))
+                           (:eccentricity-deviation $)))
+    (update $ :eccentricity
+            (partial math/constrain (- (:eccentricity-limit $))
+                     (:eccentricity-limit $)))))
 
 
 (defn draw-state [state]
@@ -140,7 +141,7 @@
     (quil/text-font (quil/create-font "Iosevka Regular" 20) 20)
     (when (and (:debug-state state) (seq info))
       (apply quil/fill (:color state))
-      (quil/text info 15 15))))
+      (quil/text info 25 25))))
 
 
 (defn mw! [k f] #(update % k juxt f))
@@ -149,8 +150,7 @@
 (defn -main [& args]
   (quil/defsketch caves
     :size       [800 800]
-    :setup      setup
+    :setup      #(update-state default-state)
     :update     update-state
     :draw       draw-state
-    :features   [:keep-on-top]
     :middleware [quil.mw/fun-mode (mw! :draw show-info)]))
