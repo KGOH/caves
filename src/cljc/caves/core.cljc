@@ -76,14 +76,16 @@
    :eccentricity-approx    0.00001
    :curves                 [{:deviation 50, :points-count 9}
                             {:deviation 10, :points-count 30}]
+
+   :background [0]
+   :color      [255]
+   :weight     3
+
    :settings
    {:title      "Caves"
     :size       [800 800]
     :fps        5
     :mode       :rgb
-    :background [0]
-    :color      [255]
-    :weight     3
     :debug      {:reset  false
                  :stop   false
                  :curves false
@@ -121,7 +123,7 @@
   (apply quil/resize-sketch (get-in state [:settings :size]))
   (quil/frame-rate (get-in state [:settings :fps]))
   (quil/color-mode (get-in state [:settings :mode]))
-  (apply quil/background (get-in state [:settings :background]))
+  (apply quil/background (:background state))
 
   (quil/with-translation [(/ (quil/width) 2), (/ (quil/height) 2)]
     (doseq [[color points]
@@ -129,7 +131,7 @@
                    (not (get-in state [:settings :debug :curves]))
                    (->> (take 1)))
                  (map vector
-                      [(get-in state [:settings :color]) [0 100 255] [0 205 0] [255 0 0]])
+                      [(:color state) [0 100 255] [0 205 0] [255 0 0]])
                  reverse)]
 
       (apply quil/fill   color)
@@ -139,10 +141,10 @@
         (quil/stroke-weight 10)
         (doseq [[x y] points]
           (quil/ellipse x y
-                        (get-in state [:settings :weight])
-                        (get-in state [:settings :weight]))))
+                        (:weight state)
+                        (:weight state))))
 
-      (quil/stroke-weight (get-in state [:settings :weight]))
+      (quil/stroke-weight (:weight state))
       (quil/no-fill)
       (quil/begin-shape)
       (doseq [p (take (+ 3 (count points))
@@ -156,7 +158,7 @@
     (quil/text-font (quil/create-font "Iosevka Regular" 20) 20)
     (when (and (get-in state [:settings :debug :state])
                (seq info))
-      (apply quil/fill (get-in state [:settings :color]))
+      (apply quil/fill (:color state))
       (quil/text info 25 25))))
 
 
