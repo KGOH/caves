@@ -1,6 +1,7 @@
 (ns caves.core
   (:require [quil.core :as quil]
             [quil.middleware :as quil.mw]
+            [gil.core :as gil]
             [caves.math :as math]
             [clojure.string :as str]))
 
@@ -144,6 +145,10 @@
       (quil/text info 25 25))))
 
 
+(defn record-gif! [name frames fps _]
+  (gil/save-animation (str name ".gif") frames (int (/ 100 fps))))
+
+
 (defn mw! [k f] #(update % k juxt f))
 
 
@@ -153,4 +158,6 @@
     :setup      #(update-state default-state)
     :update     update-state
     :draw       draw-state!
-    :middleware [quil.mw/fun-mode (mw! :draw show-info!)]))
+    :middleware [quil.mw/fun-mode
+                 (mw! :draw show-info!)
+                 (mw! :draw (partial record-gif! "caves" 10 5))]))
