@@ -137,12 +137,7 @@
                 :size  [1000 1000]
                 :fps   5
                 :mode  :rgb
-                :debug {:reset  false
-                        :pause  false
-                        :curves false
-                        :points false
-                        :lines  false
-                        :state  false}}})
+                :debug #{#_:reset #_:pause #_:curves #_:points #_:lines #_:state}}})
 
 
 (defn update-state [state]
