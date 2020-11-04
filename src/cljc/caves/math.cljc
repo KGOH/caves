@@ -38,7 +38,51 @@
 
 (defn cartesian->polar [[x y]]
   {:radius (quil/sqrt (+ (quil/pow x 2) (quil/pow y 2)))
-   :angle  (quil/atan (/ y x))})
+   :angle  (quil/atan2 y x)})
+
+
+(defn rotate [angle [q q+s]]
+  (-> (mapv - q+s q)
+      cartesian->polar
+      (update :angle + angle)
+      polar->cartesian
+      (->> (mapv + q)
+           (vector q))))
+
+
+(defn direction [[q q+s]]
+  (-> (mapv - q+s q)
+      cartesian->polar
+      (assoc :radius 1)
+      polar->cartesian))
+
+
+(defn middle-of-angle [p2 p1 p3]
+  (let [a          (map - p2 p1)
+        b          (map - p3 p1)
+        a-angle    (apply quil/atan2 (reverse a))
+        b-angle    (apply quil/atan2 (reverse b))
+        angle      (- (cond-> b-angle
+                        (> b-angle a-angle)
+                        (+ quil/TWO-PI))
+                      a-angle)
+        half-angle (/ angle 2)]
+    (direction (rotate half-angle [p1 p2]))))
+
+
+(defn point-crosses-segment? [[x y] [[x1 y1] [x2 y2]]]
+  (and (not= (< y y1) (< y y2))
+       (< x (-> (- x2 x1)
+                (* (- y y1))
+                (/ (- y2 y1))
+                (+ x1)))))
+
+(defn path-contains-point? [path point]
+  (->> (map vector path (rest (cycle path)))
+       (map (partial point-crosses-segment? point))
+       (filter true?)
+       count
+       odd?))
 
 
 (defn segment-contains?
@@ -63,9 +107,9 @@
 
 
 (defn segment&ray-intersection [[q q+s] [p theta]]
-  (let [s     (map - q+s q)
+  (let [s     (mapv - q+s q)
         r     (polar->cartesian {:angle theta})
-        q-p   (map - q p)
+        q-p   (mapv - q p)
         r*s   (cross* r s)
 
         #_#_q-p*r (cross* q-p r)
@@ -75,7 +119,7 @@
     (when (and (not= 0 r*s)
                #_(<= 0 t 1)
                #_(<= 0 u 1))
-      (map + p (map (partial * t) r)))))
+      (mapv + p (mapv (partial * t) r)))))
 
 
 (defn angles-too-close? [approx angle1 angle2]

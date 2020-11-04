@@ -79,7 +79,21 @@
                    spawned-formations-count))))
 
 
-(defn generate-slice [{:keys [approx radius eccentricity curves formations]} & [seed]]
+(defn fix-self-inersecions [clearance curve]
+  (mapcat (fn [& [_ p _ :as points]]
+            (let [point-to-the-left
+                  (->> (apply math/middle-of-angle points)
+                       (mapv (partial * clearance))
+                       (mapv + p))]
+              (if (math/path-contains-point? curve point-to-the-left)
+                [p]
+                [])))
+          (cycle (cons (last curve) (butlast curve)))
+          curve
+          (rest (cycle curve))))
+
+
+(defn generate-slice [{:keys [approx radius clearance eccentricity curves formations]} & [seed]]
   (let [[main-curve & curves]
         (map #(generate-curve (assoc % :radius radius) seed) curves)
 
@@ -90,30 +104,34 @@
              (mapcat (partial project-points-on-segment approx))
              (sort-by :angle)
              (map (comp math/polar->cartesian (partial merge {:eccentricity eccentricity}))))]
-    (cons (reduce add-formation points formations)
+    (cons (->> (reduce add-formation points formations)
+               (fix-self-inersecions clearance))
           (map (partial map (comp math/polar->cartesian (partial merge {:eccentricity eccentricity})))
                (cons main-curve curves)))))
 
 
 (def default-state
-  {:approx                 (/ quil/TWO-PI 35) ;; number here must be greater than max points count
+  {:approx                 (/ quil/TWO-PI 31) ;; number here must be greater than max points count
    :radius                 400
    :eccentricity           0.5
    :eccentricity-deviation 0.01
    :eccentricity-limit     0.8
    :eccentricity-approx    0.00001
-   :formations             [{:deviation     60
+   :clearance              50
+   :formations             [{:deviation     90
                              :max-count     9
                              :direction     [0 1]
                              :probability   0.3
-                             :rule          (fn [[x y]] (and (> 75 y)
-                                                             (> 300 (quil/abs x))))}
-                            {:deviation     60
+                             :rule          (fn [[x y]]
+                                              (and (> 75 y)
+                                                   (> 200 (quil/abs x))))}
+                            {:deviation     90
                              :max-count     9
                              :direction     [0 -1]
                              :probability   0.3
-                             :rule          (fn [[x y]] (and (< -75 y)
-                                                             (> 300 (quil/abs x))))}]
+                             :rule          (fn [[x y]]
+                                              (and (< -75 y)
+                                                   (> 200 (quil/abs x))))}]
    :curves                 [{:deviation 50, :points-count 9}
                             {:deviation 10, :points-count 30}]
 
@@ -123,7 +141,7 @@
 
    :settings
    {:title      "Caves"
-    :size       [1000 1000]
+    :size       [1500 1500]
     :fps        5
     :mode       :rgb
     :debug      {:reset  false
