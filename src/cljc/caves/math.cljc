@@ -3,8 +3,10 @@
             [clojure.core.matrix.random :as matrix.random]))
 
 
-(defn normal-rand []
-  (first (matrix.random/sample-normal 1)))
+(defn normal-rand
+  ([] (first (matrix.random/sample-normal 1)))
+  ([b] (* b (quil/abs (first (matrix.random/sample-normal 1)))))
+  ([a b] (+ a (normal-rand (- b a)))))
 
 
 (defn rand-num [a b]

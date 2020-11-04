@@ -44,19 +44,19 @@
 
 
 (defn gen-random-deviation [deviation & [seed]]
-  (-> (math/normal-rand) quil/abs (* deviation) int))
+  (-> (apply math/normal-rand deviation) int))
 
 
 (defn generate-curve [{:keys [radius points-count deviation]} & [seed]]
   (for [angle (range 0 quil/TWO-PI (/ quil/TWO-PI points-count))
-        :let  [rand-deviation (- (gen-random-deviation deviation seed))]]
+        :let  [rand-deviation (- (gen-random-deviation [deviation] seed))]]
     {:radius        (+ radius rand-deviation)
      :deviation     rand-deviation
      :max-deviation deviation
      :angle         angle}))
 
 
-(defn add-formation [points {:keys [rule max-count probability direction deviation]}]
+(defn add-formation [points {:keys [rule max-count probability direction height width]}]
   (loop [[point & rest-points :as points] points
          processed-points                 []
          spawned-formations-count         0]
@@ -67,15 +67,17 @@
 
       (and (rule point) (math/normal-random-decision probability))
       (recur rest-points
-             (conj processed-points
-                   (->> (map *
-                             direction
-                             (repeat (gen-random-deviation deviation)))
-                        (map + point)))
+             (concat processed-points
+                     [(->> (mapv * (reverse direction) (repeat (gen-random-deviation width)))
+                           (mapv - point))
+                      (->> (mapv * direction (repeat (gen-random-deviation height)))
+                           (mapv + point))
+                      (->> (mapv * (reverse direction) (repeat (gen-random-deviation width)))
+                           (mapv + point))])
              (inc spawned-formations-count))
 
       :else (recur rest-points
-                   (conj processed-points point)
+                   (concat processed-points [point])
                    spawned-formations-count))))
 
 
@@ -116,15 +118,17 @@
    :clearance              50
    :curves                 [{:deviation 50, :points-count 9}
                             {:deviation 10, :points-count 30}]
-   :formations             [{:deviation   90
+   :formations             [{:height      [20 90]
+                             :width       [20 40]
                              :max-count   9
                              :direction   [0 1]
-                             :probability 0.3
+                             :probability 0.2
                              :rule        (fn [[x y]] (and (> 75 y) (> 200 (quil/abs x))))}
-                            {:deviation   90
+                            {:height      [60 90]
+                             :width       [20 20]
                              :max-count   9
                              :direction   [0 -1]
-                             :probability 0.3
+                             :probability 0.2
                              :rule        (fn [[x y]] (and (< -75 y) (> 200 (quil/abs x))))}]
    :background [0]
    :color      [255]
