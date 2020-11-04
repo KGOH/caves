@@ -1,9 +1,8 @@
 (ns caves.core
   (:require [quil.core :as quil]
             [quil.middleware :as quil.mw]
-            [gil.core :as gil]
             [caves.math :as math]
-            [clojure.pprint :as pprint]))
+            [caves.middleware :as mw]))
 
 
 (defn make-groups
@@ -199,21 +198,6 @@
             (apply quil/curve-vertex p))
           (quil/end-shape))))))
 
-(defn show-info! [state]
-  (let [info (with-out-str (pprint/pprint state))]
-    (quil/text-font (quil/create-font "Iosevka Regular" 20) 20)
-    (when (and (get-in state [:settings :debug :state])
-               (seq info))
-      (apply quil/fill (:color state))
-      (quil/text info 25 25))))
-
-
-(defn record-gif! [name frames fps _]
-  (gil/save-animation (str name ".gif") frames (int (/ 100 fps))))
-
-
-(defn mw! [k f] #(update % k juxt f))
-
 
 (defn -main [& args]
   (quil/defsketch caves
@@ -223,5 +207,6 @@
     :update     update-state
     :draw       draw-state!
     :middleware [quil.mw/fun-mode
-                 (mw! :draw (comp show-info! #(dissoc % :points)))
-                 (mw! :draw (partial record-gif! "caves" 10 5))]))
+                 mw/navigation-2d
+                 (mw/mw! :draw #(mw/show-state! (dissoc % :points) (quil/create-font "Iosevka Regular" 20)))
+                 (mw/mw! :draw (partial mw/record-gif! "caves" 10 5))]))
