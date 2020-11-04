@@ -139,7 +139,7 @@
    :weight     3
    :settings   {:title "Caves"
                 :size  [1000 1000]
-                :fps   5
+                :fps   1
                 :mode  :rgb
                 :debug #{#_:reset #_:pause #_:curves #_:points #_:lines #_:state}}})
 
@@ -148,6 +148,9 @@
   (as-> state $
     (merge $ (select-keys default-state [:settings]))
     (cond-> $
+      (get-in $ [:settings :debug :pause])
+      (assoc-in [:settings :fps] 30)
+
       (not (get-in $ [:settings :debug :pause]))
       (as-> $
         (assoc $ :points (generate-slice $))
@@ -219,4 +222,4 @@
     :middleware [quil.mw/fun-mode
                  mw/navigation-2d
                  (mw/mw! :draw #(mw/show-state! (dissoc % :points) (quil/create-font "Iosevka Regular" 20)))
-                 (mw/mw! :draw (partial mw/record-gif! "caves" 10 5))]))
+                 (mw/mw! :draw (partial mw/record-gif! "caves" 10 1))]))
