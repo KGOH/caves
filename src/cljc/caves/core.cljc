@@ -81,14 +81,18 @@
                    spawned-formations-count))))
 
 
-(defn fix-self-inersecions [clearance curve]
+(defn fix-self-inersecions [{:keys [angle radius]} curve]
   (->> (map vector (cycle (cons (last curve) (butlast curve))) curve (rest (cycle curve)))
        (keep (fn [[_ p _ :as points]]
-               (when (->> (apply math/middle-of-angle points)
-                          (mapv (partial * clearance))
-                          (mapv + p)
-                          (math/path-contains-point? curve))
-                 p)))))
+               (let [middle-of-angle        (apply math/middle-of-angle points)
+                     left-clearance-border  (second (math/rotate (- (/ angle 2)) [[0 0] middle-of-angle]))
+                     right-clearance-border (second (math/rotate (/ angle 2) [[0 0] middle-of-angle]))
+                     points-to-test         (->> [left-clearance-border middle-of-angle right-clearance-border]
+                                                 (mapv (partial mapv (partial * radius)))
+                                                 (mapv (partial mapv + p)))]
+                 (when (every? (partial math/path-contains-point? curve)
+                               points-to-test)
+                   p))))))
 
 
 (defn generate-slice [{:keys [approx radius clearance eccentricity curves formations]} & [seed]]
@@ -115,7 +119,7 @@
    :eccentricity-deviation 0.01
    :eccentricity-limit     0.8
    :eccentricity-approx    0.00001
-   :clearance              50
+   :clearance              {:radius 30, :angle (* quil/DEG-TO-RAD 30)}
    :curves                 [{:deviation 50, :points-count 9}
                             {:deviation 10, :points-count 30}]
    :formations             [{:height      [20 90]
