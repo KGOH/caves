@@ -80,17 +80,13 @@
 
 
 (defn fix-self-inersecions [clearance curve]
-  (mapcat (fn [& [_ p _ :as points]]
-            (let [point-to-the-left
-                  (->> (apply math/middle-of-angle points)
-                       (mapv (partial * clearance))
-                       (mapv + p))]
-              (if (math/path-contains-point? curve point-to-the-left)
-                [p]
-                [])))
-          (cycle (cons (last curve) (butlast curve)))
-          curve
-          (rest (cycle curve))))
+  (->> (map vector (cycle (cons (last curve) (butlast curve))) curve (rest (cycle curve)))
+       (keep (fn [[_ p _ :as points]]
+               (when (->> (apply math/middle-of-angle points)
+                          (mapv (partial * clearance))
+                          (mapv + p)
+                          (math/path-contains-point? curve))
+                 p)))))
 
 
 (defn generate-slice [{:keys [approx radius clearance eccentricity curves formations]} & [seed]]
@@ -118,38 +114,31 @@
    :eccentricity-limit     0.8
    :eccentricity-approx    0.00001
    :clearance              50
-   :formations             [{:deviation     90
-                             :max-count     9
-                             :direction     [0 1]
-                             :probability   0.3
-                             :rule          (fn [[x y]]
-                                              (and (> 75 y)
-                                                   (> 200 (quil/abs x))))}
-                            {:deviation     90
-                             :max-count     9
-                             :direction     [0 -1]
-                             :probability   0.3
-                             :rule          (fn [[x y]]
-                                              (and (< -75 y)
-                                                   (> 200 (quil/abs x))))}]
    :curves                 [{:deviation 50, :points-count 9}
                             {:deviation 10, :points-count 30}]
-
+   :formations             [{:deviation   90
+                             :max-count   9
+                             :direction   [0 1]
+                             :probability 0.3
+                             :rule        (fn [[x y]] (and (> 75 y) (> 200 (quil/abs x))))}
+                            {:deviation   90
+                             :max-count   9
+                             :direction   [0 -1]
+                             :probability 0.3
+                             :rule        (fn [[x y]] (and (< -75 y) (> 200 (quil/abs x))))}]
    :background [0]
    :color      [255]
    :weight     3
-
-   :settings
-   {:title      "Caves"
-    :size       [1500 1500]
-    :fps        5
-    :mode       :rgb
-    :debug      {:reset  false
-                 :pause  false
-                 :curves false
-                 :points false
-                 :lines  false
-                 :state  false}}})
+   :settings   {:title "Caves"
+                :size  [1000 1000]
+                :fps   5
+                :mode  :rgb
+                :debug {:reset  false
+                        :pause  false
+                        :curves false
+                        :points false
+                        :lines  false
+                        :state  false}}})
 
 
 (defn update-state [state]
