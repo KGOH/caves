@@ -128,7 +128,7 @@
     :fps        5
     :mode       :rgb
     :debug      {:reset  false
-                 :stop   false
+                 :pause  false
                  :curves false
                  :points false
                  :state  false}}})
@@ -138,7 +138,7 @@
   (as-> state $
     (merge $ (select-keys default-state [:settings]))
     (cond-> $
-      (not (get-in $ [:settings :debug :stop]))
+      (not (get-in $ [:settings :debug :pause]))
       (as-> $
         (assoc $ :points (generate-slice $))
         (update $ :eccentricity-deviation
