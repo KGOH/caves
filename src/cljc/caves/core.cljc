@@ -131,6 +131,7 @@
                  :pause  false
                  :curves false
                  :points false
+                 :lines  false
                  :state  false}}})
 
 
@@ -181,18 +182,22 @@
       (when (get-in state [:settings :debug :points])
         (quil/stroke-weight 10)
         (doseq [[x y] points]
-          (quil/ellipse x y
-                        (:weight state)
-                        (:weight state))))
+          (quil/ellipse x y (:weight state) (:weight state))))
 
       (quil/stroke-weight (:weight state))
       (quil/no-fill)
-      (quil/begin-shape)
-      (doseq [p (take (+ 3 (count points))
-                      (cycle points))]
-        (apply quil/curve-vertex p))
-      (quil/end-shape))))
 
+      (if (get-in state [:settings :debug :lines])
+        (do
+          (quil/begin-shape)
+          (doseq [p points]
+            (apply quil/vertex p))
+          (quil/end-shape :close))
+        (do
+          (quil/begin-shape)
+          (doseq [p (take (+ 3 (count points)) (cycle points))]
+            (apply quil/curve-vertex p))
+          (quil/end-shape))))))
 
 (defn show-info! [state]
   (let [info (with-out-str (pprint/pprint state))]
