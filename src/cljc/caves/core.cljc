@@ -1,9 +1,10 @@
 (ns caves.core
-  (:require [quil.core :as quil]
-            [quil.middleware :as quil.mw]
-            [caves.math :as math]
+  (:require [caves.math :as math]
             [caves.draw :as draw]
-            [caves.middleware :as mw]))
+            [caves.middleware :as mw]
+            [quil.core :as quil]
+            [quil.middleware :as quil.mw]
+            [clojure.core.matrix :as matrix]))
 
 
 (defn make-groups
@@ -76,13 +77,13 @@
       (concat processed-points (rest points))
 
       (and (rule point) (math/random-decision probability))
-      (let [formation-center (->> (mapv * direction (repeat (gen-random-deviation height)))
-                                  (mapv + point))
+      (let [formation-center (->> (matrix/mul direction (repeat 2 (gen-random-deviation height)))
+                                  (matrix/add point))
             [formation-left-base formation-right-base]
-            (->> [(->> (mapv * (reverse direction) (repeat (gen-random-deviation width)))
-                       (mapv - point))
-                  (->> (mapv * (reverse direction) (repeat (gen-random-deviation width)))
-                       (mapv + point))]
+            (->> [(->> (matrix/mul (reverse direction) (repeat 2 (gen-random-deviation width)))
+                       (matrix/sub point))
+                  (->> (matrix/mul (reverse direction) (repeat 2 (gen-random-deviation width)))
+                       (matrix/add point))]
                  (sort-by (partial math/distance prev-point)))
 
             prev-base-ok-distance? (distance-ok? formation-left-base point prev-point distance)
@@ -110,8 +111,8 @@
         right-clearance-border    (second (math/rotate (/ angle 2) [[0 0] middle-of-angle]))
         radius-scalars            (mapv (partial repeat 2) [radius-small radius-big radius-small])]
     (->> [left-clearance-border middle-of-angle right-clearance-border]
-         (mapv (partial mapv *) radius-scalars)
-         (mapv (partial mapv + base-point)))))
+         (mapv matrix/mul radius-scalars)
+         (mapv (partial matrix/add base-point)))))
 
 
 (defn fix-self-inersecions [clearance curve]
@@ -152,9 +153,9 @@
      :debug {:clearance tested-points
              :slices    (concat [with-formations points]
                                 (map (->> (partial merge {:eccentricity eccentricity})
-                                       (comp math/polar->cartesian)
-                                       (partial map))
-                                  (cons main-curve curves)))}}))
+                                          (comp math/polar->cartesian)
+                                          (partial map))
+                                     (cons main-curve curves)))}}))
 
 (def default-state
   {:approx                 (/ quil/TWO-PI 31) ;; number here must be greater than max points count
@@ -163,7 +164,7 @@
    :eccentricity-deviation 0.01
    :eccentricity-limit     0.8
    :eccentricity-approx    0.00001
-   :clearance              {:radius [15 35] :angle (* quil/DEG-TO-RAD 30)}
+   :clearance              {:radius [15 35] :angle (quil/radians 30)}
    :curves                 [{:deviation 50, :points-count 9}
                             {:deviation 10, :points-count 30}]
    :formations             [{:height      [40 90] ;; Stalactites ;; TODO: Stalagnates

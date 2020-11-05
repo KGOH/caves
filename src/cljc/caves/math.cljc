@@ -1,11 +1,12 @@
 (ns caves.math
   (:require [quil.core :as quil]
+            [clojure.core.matrix :as matrix]
             [clojure.core.matrix.random :as matrix.random]))
 
 
 (defn normal-rand
-  ([] (first (matrix.random/sample-normal 1)))
-  ([b] (* b (quil/abs (first (matrix.random/sample-normal 1)))))
+  ([]    (first (matrix.random/sample-normal 1)))
+  ([b]   (* b (quil/abs (first (matrix.random/sample-normal 1)))))
   ([a b] (+ a (normal-rand (- b a)))))
 
 
@@ -15,10 +16,6 @@
 
 (defn random-decision [prob]
   (>= prob (rand-num 0 1)))
-
-
-(defn degree->radian [degree]
-  (* quil/DEG-TO-RAD degree))
 
 
 (defn constrain
@@ -48,24 +45,24 @@
 
 
 (defn rotate [angle [q q+s]]
-  (-> (mapv - q+s q)
+  (-> (matrix/sub q+s q)
       cartesian->polar
       (update :angle + angle)
       polar->cartesian
-      (->> (mapv + q)
+      (->> (matrix/add q)
            (vector q))))
 
 
 (defn direction [[q q+s]]
-  (-> (mapv - q+s q)
+  (-> (matrix/sub q+s q)
       cartesian->polar
       (assoc :radius 1)
       polar->cartesian))
 
 
 (defn angle [p2 p1 p3]
-  (let [a          (map - p2 p1)
-        b          (map - p3 p1)
+  (let [a          (matrix/sub p2 p1)
+        b          (matrix/sub p3 p1)
         a-angle    (apply quil/atan2 (reverse a))
         b-angle    (apply quil/atan2 (reverse b))]
     (- (cond-> b-angle
@@ -117,9 +114,9 @@
 
 
 (defn segment&ray-intersection [[q q+s] [p theta]]
-  (let [s     (mapv - q+s q)
+  (let [s     (matrix/sub q+s q)
         r     (polar->cartesian {:angle theta})
-        q-p   (mapv - q p)
+        q-p   (matrix/sub q p)
         r*s   (cross* r s)
 
         #_#_q-p*r (cross* q-p r)
@@ -129,7 +126,7 @@
     (when (and (not= 0 r*s)
                #_(<= 0 t 1)
                #_(<= 0 u 1))
-      (mapv + p (mapv (partial * t) r)))))
+      (matrix/add p (matrix/scale r t)))))
 
 
 (defn angles-too-close? [approx angle1 angle2]
