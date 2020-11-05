@@ -165,7 +165,7 @@
                 :size  [1000 1000]
                 :fps   1
                 :mode  :rgb
-                :debug #{#_:reset #_:pause #_:curves #_:points #_:lines #_:clearance #_:state #_:reverse}}})
+                :debug #{#_:reset #_:pause #_:curves #_:reverse #_:points #_:index #_:distance #_:coordinates #_:lines #_:clearance #_:state}}})
 
 (defn update-state [state]
   (as-> state $
@@ -245,16 +245,10 @@
                    (get-in state [:settings :debug :reverse])
                    reverse))]
 
-      (apply quil/fill   color)
-      (apply quil/stroke color)
-
-      (when (get-in state [:settings :debug :points])
-        (quil/stroke-weight 10)
-        (doseq [[x y] points]
-          (quil/ellipse x y (:weight state) (:weight state))))
-
-      (quil/stroke-weight (:weight state))
       (quil/no-fill)
+      (quil/stroke-weight (:weight state))
+
+      (apply quil/stroke color)
 
       (if (get-in state [:settings :debug :lines])
         (do
@@ -266,7 +260,30 @@
           (quil/begin-shape)
           (doseq [p (take (+ 3 (count points)) (cycle points))]
             (apply quil/curve-vertex p))
-          (quil/end-shape))))))
+          (quil/end-shape)))
+
+      (quil/no-fill)
+
+      (when (get-in state [:settings :debug :points])
+        (doseq [[i [x y]] (map-indexed vector points)]
+          (quil/no-fill)
+          (when (get-in state [:settings :debug :distance])
+            (quil/stroke-weight 1)
+            (quil/ellipse x y 70 70))
+          (quil/stroke-weight 10)
+          (quil/ellipse x y (:weight state) (:weight state))
+
+          (when (get-in state [:settings :debug :index])
+            (apply quil/fill [180])
+            (quil/text-font (quil/create-font "Iosevka Regular" 10))
+            (quil/text (str i) x (- y 10)))
+
+          (when (get-in state [:settings :debug :coordinates])
+            (apply quil/fill [180])
+            (quil/text-font (quil/create-font "Iosevka Regular" 10))
+            (quil/text (str (int x) "," (int y)) x y)
+            (let [{:keys [angle radius]} (math/cartesian->polar [x y])]
+              (quil/text (str (int (* quil/RAD-TO-DEG angle 10)) "," (int radius)) x (+ y 12)))))))))
 
 
 (defn -main [& args]

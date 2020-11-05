@@ -83,6 +83,7 @@
                 (/ (- y2 y1))
                 (+ x1)))))
 
+
 (defn path-contains-point? [path point]
   (->> (map vector path (rest (cycle path)))
        (map (partial point-crosses-segment? point))
