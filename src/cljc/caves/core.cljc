@@ -57,6 +57,13 @@
      :angle         angle}))
 
 
+(defn distance-ok? [point zero-point neighboring-point distance] ;; TODO: still not pefrect
+  (and (< distance (math/distance point neighboring-point))
+       (> quil/HALF-PI
+          (math/angle-diff (math/angle [1 0] [0 0] (math/direction [zero-point neighboring-point]))
+                           (math/angle [1 0] [0 0] (math/direction [point neighboring-point]))))))
+
+
 (defn add-formation [points {:keys [rule max-count probability direction height width distance]}]
   (loop [[prev-point point next-point & rrest-points :as points]
          (cons nil points)
@@ -78,23 +85,16 @@
                        (mapv + point))]
                  (sort-by (partial math/distance prev-point)))
 
-            prev-too-close?    (>= distance (math/distance prev-point formation-left-base))
-            prev-base-too-far? (< quil/HALF-PI
-                                  (math/angle-diff (math/angle [1 0] [0 0] (math/direction [point prev-point]))
-                                                   (math/angle [1 0] [0 0] (math/direction [formation-left-base prev-point]))))
+            prev-base-ok-distance? (distance-ok? formation-left-base point prev-point distance)
+            next-base-ok-distance? (distance-ok? formation-right-base point next-point distance)
 
-            next-too-close?    (>= distance (math/distance next-point formation-right-base))
-            next-base-too-far? (< quil/HALF-PI
-                                  (math/angle-diff (math/angle [1 0] [0 0] (math/direction [point next-point]))
-                                                   (math/angle [1 0] [0 0] (math/direction [formation-right-base next-point]))))
-
-            formation (->> [(when-not (or prev-base-too-far? prev-too-close?) formation-left-base)
+            formation (->> [(when prev-base-ok-distance? formation-left-base)
                             formation-center
-                            (if-not (or next-base-too-far? next-too-close?) formation-right-base next-point)]
+                            (if next-base-ok-distance? formation-right-base next-point)]
                            (remove nil?))]
-        (recur (if (or next-base-too-far? next-too-close?)
-                 rrest-points
-                 (rest points))
+        (recur (if next-base-ok-distance?
+                 (rest points)
+                 rrest-points)
                (into processed-points formation)
                (inc spawned-formations-count)))
 
