@@ -13,8 +13,8 @@
   (+ a (rand (- b a))))
 
 
-(defn normal-random-decision [prob]
-  (<= prob (- 1.5 (quil/abs (normal-rand)))))
+(defn random-decision [prob]
+  (>= prob (rand-num 0 1)))
 
 
 (defn degree->radian [degree]
@@ -24,6 +24,10 @@
 (defn constrain
   [a b x]
   (-> x (max a) (min b)))
+
+
+(defn distance [& points]
+  (apply quil/dist (apply concat points)))
 
 
 (defn polar->cartesian [{:keys [radius eccentricity angle]

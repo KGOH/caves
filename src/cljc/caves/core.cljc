@@ -56,44 +56,66 @@
      :angle         angle}))
 
 
-(defn add-formation [points {:keys [rule max-count probability direction height width]}]
-  (loop [[point & rest-points :as points] points
+(defn add-formation [points {:keys [rule max-count probability direction height width distance]}]
+  (loop [[prev-point point next-point & rrest-points :as points]
+         (cons nil points)
+
          processed-points                 []
          spawned-formations-count         0]
     (cond
       (or (>= spawned-formations-count max-count)
           (nil? point))
-      (concat processed-points points)
+      (concat processed-points (rest points))
 
-      (and (rule point) (math/normal-random-decision probability))
-      (recur rest-points
-             (concat processed-points
-                     [(->> (mapv * (reverse direction) (repeat (gen-random-deviation width)))
-                           (mapv - point))
-                      (->> (mapv * direction (repeat (gen-random-deviation height)))
-                           (mapv + point))
-                      (->> (mapv * (reverse direction) (repeat (gen-random-deviation width)))
-                           (mapv + point))])
-             (inc spawned-formations-count))
+      (and (rule point) (math/random-decision probability))
+      (let [formation-center     (->> (mapv * direction (repeat (gen-random-deviation height)))
+                                      (mapv + point))
+            formation-left-base  (->> (mapv * (reverse direction) (repeat (gen-random-deviation width)))
+                                      (mapv - point))
+            formation-right-base (->> (mapv * (reverse direction) (repeat (gen-random-deviation width)))
+                                      (mapv + point))
+            prev-too-close?      (> distance (math/distance prev-point formation-left-base))
+            next-too-close?      (> distance (math/distance prev-point formation-right-base))
+            formation            (->> [(when-not prev-too-close? formation-left-base)
+                                       formation-center
+                                       (if-not next-too-close? formation-right-base next-point)]
+                                      (remove nil?))]
+        (recur (if next-too-close?
+                 rrest-points
+                 (rest points))
+               (into processed-points formation)
+               (inc spawned-formations-count)))
 
-      :else (recur rest-points
-                   (concat processed-points [point])
+      :else (recur (rest points)
+                   (conj processed-points point)
                    spawned-formations-count))))
 
 
-(defn fix-self-inersecions [{:keys [angle radius]} curve]
-  (->> (map vector (cycle (cons (last curve) (butlast curve))) curve (rest (cycle curve)))
-       (keep (fn [[_ p _ :as points]]
-               (let [middle-of-angle        (apply math/middle-of-angle points)
-                     left-clearance-border  (second (math/rotate (- (/ angle 2)) [[0 0] middle-of-angle]))
-                     right-clearance-border (second (math/rotate (/ angle 2) [[0 0] middle-of-angle]))
-                     points-to-test         (->> [left-clearance-border middle-of-angle right-clearance-border]
-                                                 (mapv (partial mapv (partial * radius)))
-                                                 (mapv (partial mapv + p)))]
-                 (when (every? (partial math/path-contains-point? curve)
-                               points-to-test)
-                   p))))))
+(defn gen-points-to-test [{:keys [angle radius]} [_ base-point _ :as points]]
+  (let [[radius-small radius-big] radius
+        middle-of-angle           (apply math/middle-of-angle points)
+        left-clearance-border     (second (math/rotate (- (/ angle 2)) [[0 0] middle-of-angle]))
+        right-clearance-border    (second (math/rotate (/ angle 2) [[0 0] middle-of-angle]))
+        radius-scalars            (mapv (partial repeat 2) [radius-small radius-big radius-small])]
+    (->> [left-clearance-border middle-of-angle right-clearance-border]
+         (mapv (partial mapv *) radius-scalars)
+         (mapv (partial mapv + base-point)))))
 
+
+(defn fix-self-inersecions [clearance curve]
+  (loop [[prev-point curr-point next-point & rest-points :as points]
+         (concat [(last curve)] curve [(first curve)])
+
+         result []]
+    (if (nil? next-point)
+      result
+      (let [angle          [prev-point curr-point next-point]
+            tested-points  (mapv (juxt (partial math/path-contains-point? (concat result points))
+                                       identity)
+                                 (gen-points-to-test clearance angle))]
+        (if (every? (comp true? first) tested-points)
+          (recur (rest points) (conj result curr-point))
+          (recur (cons prev-point (cons next-point rest-points)) result))))))
 
 (defn generate-slice [{:keys [approx radius clearance eccentricity curves formations]} & [seed]]
   (let [[main-curve & curves]
@@ -105,34 +127,36 @@
              vals
              (mapcat (partial project-points-on-segment approx))
              (sort-by :angle)
-             (map (comp math/polar->cartesian (partial merge {:eccentricity eccentricity}))))]
-    (cons (->> (reduce add-formation points formations)
-               (fix-self-inersecions clearance))
-          (map (partial map (comp math/polar->cartesian (partial merge {:eccentricity eccentricity})))
-               (cons main-curve curves)))))
-
+             (map (comp math/polar->cartesian (partial merge {:eccentricity eccentricity}))))
+        with-formations (reduce add-formation points formations)
+        fixed           (fix-self-inersecions clearance with-formations)]
+    (concat [fixed with-formations points]
+            (map (partial map (comp math/polar->cartesian (partial merge {:eccentricity eccentricity})))
+                 (cons main-curve curves)))))
 
 (def default-state
   {:approx                 (/ quil/TWO-PI 31) ;; number here must be greater than max points count
    :radius                 400
-   :eccentricity           0.5
+   :eccentricity           0.8
    :eccentricity-deviation 0.01
    :eccentricity-limit     0.8
    :eccentricity-approx    0.00001
-   :clearance              {:radius 30, :angle (* quil/DEG-TO-RAD 30)}
+   :clearance              {:radius [15 30] :angle (* quil/DEG-TO-RAD 30)}
    :curves                 [{:deviation 50, :points-count 9}
                             {:deviation 10, :points-count 30}]
-   :formations             [{:height      [20 90]
+   :formations             [{:height      [40 90] ;; Stalactites
                              :width       [20 40]
+                             :distance    20
                              :max-count   9
                              :direction   [0 1]
                              :probability 0.2
                              :rule        (fn [[x y]] (and (> 75 y) (> 200 (quil/abs x))))}
-                            {:height      [60 90]
-                             :width       [20 20]
+                            {:height      [40 90] ;; Stalagmites
+                             :width       [20 40]
+                             :distance    20
                              :max-count   9
                              :direction   [0 -1]
-                             :probability 0.2
+                             :probability 0.1
                              :rule        (fn [[x y]] (and (< -75 y) (> 200 (quil/abs x))))}]
    :background [0]
    :color      [255]
@@ -141,19 +165,18 @@
                 :size  [1000 1000]
                 :fps   1
                 :mode  :rgb
-                :debug #{#_:reset #_:pause #_:curves #_:points #_:lines #_:state}}})
-
+                :debug #{#_:reset #_:pause #_:curves #_:points #_:lines #_:clearance #_:state #_:reverse}}})
 
 (defn update-state [state]
   (as-> state $
     (merge $ (select-keys default-state [:settings]))
     (cond-> $
       (get-in $ [:settings :debug :pause])
-      (assoc-in [:settings :fps] 30)
+      (assoc-in [:settings :fps] 10)
 
       (not (get-in $ [:settings :debug :pause]))
       (as-> $
-        (assoc $ :points (generate-slice $))
+            (assoc $ :points (generate-slice $))
         (update $ :eccentricity-deviation
                 (if (math/diff-is-almost-zero?
                      (:eccentricity-approx state)
@@ -180,13 +203,47 @@
   (apply quil/background (:background state))
 
   (quil/with-translation [(/ (quil/width) 2), (/ (quil/height) 2)]
+
+    (when (get-in state [:settings :debug :clearance])
+      (let [curve     (second (:points state))
+            clearance (:clearance state)]
+        (loop [[prev-point curr-point next-point & rest-points :as points]
+               (concat [(last curve)] curve [(first curve)])
+
+               result []]
+          (if (nil? next-point)
+            result
+            (let [angle          [prev-point curr-point next-point]
+                  tested-points  (mapv (juxt (partial math/path-contains-point? (concat result points))
+                                             identity)
+                                       (gen-points-to-test clearance angle))]
+              (doseq [[in-path? point] tested-points]
+                (if in-path?
+                  (quil/stroke 255 0 0)
+                  (quil/stroke 0 100 255))
+                (quil/line curr-point point))
+              (if (every? (comp true? first) tested-points)
+                (recur (rest points) (conj result curr-point))
+                (recur (cons prev-point (cons next-point rest-points)) result)))))
+        #_(->> (map vector (cycle (cons (last curve) (butlast curve))) curve (rest (cycle curve)))
+             (keep (fn [[_ p _ :as points]]
+                     (doseq [point (gen-points-to-test clearance points)]
+                       (if (math/path-contains-point? curve point)
+                         (quil/stroke 255 0 0)
+                         (quil/stroke 0 100 255))
+                       (quil/line p point))))
+             doall)))
+
     (doseq [[color points]
             (->> (cond-> (:points state)
                    (not (get-in state [:settings :debug :curves]))
-                   (->> (take 1)))
-                 (map vector
-                      [(:color state) [0 100 255] [0 205 0] [255 0 0]])
-                 reverse)]
+                   (->> (take 1))
+
+                   :always
+                   (->> (map vector [(:color state) [0 100 255] [0 205 0] [255 0 0] [255 255 0] [0 255 255] [255 0 255]]))
+
+                   (get-in state [:settings :debug :reverse])
+                   reverse))]
 
       (apply quil/fill   color)
       (apply quil/stroke color)
@@ -222,4 +279,4 @@
     :middleware [quil.mw/fun-mode
                  mw/navigation-2d
                  (mw/mw! :draw #(mw/show-state! (dissoc % :points) (quil/create-font "Iosevka Regular" 20)))
-                 (mw/mw! :draw (partial mw/record-gif! "caves" 10 1))]))
+                 (mw/mw! :draw (partial mw/record-gif! "caves" 20 1))]))
