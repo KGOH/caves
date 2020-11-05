@@ -60,27 +60,38 @@
   (loop [[prev-point point next-point & rrest-points :as points]
          (cons nil points)
 
-         processed-points                 []
-         spawned-formations-count         0]
+         processed-points         []
+         spawned-formations-count 0]
     (cond
       (or (>= spawned-formations-count max-count)
           (nil? point))
       (concat processed-points (rest points))
 
       (and (rule point) (math/random-decision probability))
-      (let [formation-center     (->> (mapv * direction (repeat (gen-random-deviation height)))
-                                      (mapv + point))
-            formation-left-base  (->> (mapv * (reverse direction) (repeat (gen-random-deviation width)))
-                                      (mapv - point))
-            formation-right-base (->> (mapv * (reverse direction) (repeat (gen-random-deviation width)))
-                                      (mapv + point))
-            prev-too-close?      (> distance (math/distance prev-point formation-left-base))
-            next-too-close?      (> distance (math/distance prev-point formation-right-base))
-            formation            (->> [(when-not prev-too-close? formation-left-base)
-                                       formation-center
-                                       (if-not next-too-close? formation-right-base next-point)]
-                                      (remove nil?))]
-        (recur (if next-too-close?
+      (let [formation-center (->> (mapv * direction (repeat (gen-random-deviation height)))
+                                  (mapv + point))
+            [formation-left-base  formation-right-base]
+            (->> [(->> (mapv * (reverse direction) (repeat (gen-random-deviation width)))
+                       (mapv - point))
+                  (->> (mapv * (reverse direction) (repeat (gen-random-deviation width)))
+                       (mapv + point))]
+                 (sort-by (partial math/distance prev-point)))
+
+            prev-too-close?    (>= distance (math/distance prev-point formation-left-base))
+            prev-base-too-far? (< quil/HALF-PI
+                                  (math/angle-diff (math/angle [1 0] [0 0] (math/direction [point prev-point]))
+                                                   (math/angle [1 0] [0 0] (math/direction [formation-left-base prev-point]))))
+
+            next-too-close?    (>= distance (math/distance next-point formation-right-base))
+            next-base-too-far? (< quil/HALF-PI
+                                  (math/angle-diff (math/angle [1 0] [0 0] (math/direction [point next-point]))
+                                                   (math/angle [1 0] [0 0] (math/direction [formation-right-base next-point]))))
+
+            formation (->> [(when-not (or prev-base-too-far? prev-too-close?) formation-left-base)
+                            formation-center
+                            (if-not (or next-base-too-far? next-too-close?) formation-right-base next-point)]
+                           (remove nil?))]
+        (recur (if (or next-base-too-far? next-too-close?)
                  rrest-points
                  (rest points))
                (into processed-points formation)
@@ -141,23 +152,25 @@
    :eccentricity-deviation 0.01
    :eccentricity-limit     0.8
    :eccentricity-approx    0.00001
-   :clearance              {:radius [15 30] :angle (* quil/DEG-TO-RAD 30)}
+   :clearance              {:radius [15 35] :angle (* quil/DEG-TO-RAD 30)}
    :curves                 [{:deviation 50, :points-count 9}
                             {:deviation 10, :points-count 30}]
    :formations             [{:height      [40 90] ;; Stalactites
-                             :width       [20 40]
-                             :distance    20
+                             :width       [15 40]
+                             :distance    35
                              :max-count   9
                              :direction   [0 1]
                              :probability 0.2
-                             :rule        (fn [[x y]] (and (> 75 y) (> 200 (quil/abs x))))}
+                             :rule        (fn [[x y]] (and (> -75 y) (> 200 (quil/abs x))))}
                             {:height      [40 90] ;; Stalagmites
-                             :width       [20 40]
-                             :distance    20
+                             :width       [15 40]
+                             :distance    35
                              :max-count   9
                              :direction   [0 -1]
                              :probability 0.1
-                             :rule        (fn [[x y]] (and (< -75 y) (> 200 (quil/abs x))))}]
+                             :rule        (fn [[x y]] (and (< 75 y) (> 200 (quil/abs x))))}
+                            ;; TODO: Stalagnates
+                            ]
    :background [0]
    :color      [255]
    :weight     3
@@ -203,7 +216,6 @@
   (apply quil/background (:background state))
 
   (quil/with-translation [(/ (quil/width) 2), (/ (quil/height) 2)]
-
     (when (get-in state [:settings :debug :clearance])
       (let [curve     (second (:points state))
             clearance (:clearance state)]

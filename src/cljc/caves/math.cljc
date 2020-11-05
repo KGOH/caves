@@ -63,16 +63,19 @@
       polar->cartesian))
 
 
-(defn middle-of-angle [p2 p1 p3]
+(defn angle [p2 p1 p3]
   (let [a          (map - p2 p1)
         b          (map - p3 p1)
         a-angle    (apply quil/atan2 (reverse a))
-        b-angle    (apply quil/atan2 (reverse b))
-        angle      (- (cond-> b-angle
-                        (> b-angle a-angle)
-                        (+ quil/TWO-PI))
-                      a-angle)
-        half-angle (/ angle 2)]
+        b-angle    (apply quil/atan2 (reverse b))]
+    (- (cond-> b-angle
+         (> b-angle a-angle)
+         (+ quil/TWO-PI))
+       a-angle)))
+
+
+(defn middle-of-angle [p2 p1 p3]
+  (let [half-angle (/ (angle p2 p1 p3) 2)]
     (direction (rotate half-angle [p1 p2]))))
 
 
