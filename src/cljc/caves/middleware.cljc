@@ -28,9 +28,11 @@
               (/ (quil/height) 2.0)]
    :zoom     1})
 
+
 (defn default-settings
   []
   {:enabled true})
+
 
 (defn setup-2d-nav
   "Custom 'setup' function which creates initial position
@@ -41,6 +43,7 @@
                           (->> (merge (default-position) (default-settings))))]
     (update-in (user-setup) [:navigation-2d]
                #(merge initial-state %))))
+
 
 (defn mouse-dragged
   "Changes center of the sketch depending on the last mouse move. Takes
@@ -53,10 +56,12 @@
         (update-in [:navigation-2d :position 0] + (/ dx zoom))
         (update-in [:navigation-2d :position 1] + (/ dy zoom)))))
 
+
 (defn mouse-wheel
   "Changes zoom settings based on scroll."
   [state event]
   (update-in state [:navigation-2d :zoom] * (+ 1 (* -0.1 event))))
+
 
 (defn draw
   "Calls user draw function with necessary all transformations (position
@@ -71,6 +76,7 @@
                          (- (/ (quil/height) 2 zoom) (second pos))]
                         (user-draw state)))
   (quil/pop-matrix))
+
 
 (defn navigation-2d
   "Enables navigation over 2D sketch. Dragging mouse will move center of the
