@@ -195,6 +195,7 @@
 (defn update-state [state]
   (as-> state $
     (merge $ (select-keys default-state [:settings]))
+    (assoc $ :fps (quil/current-frame-rate))
     (cond-> $
       (get-in $ [:settings :debug :pause])
       (assoc-in [:settings :fps] 10)
@@ -230,5 +231,5 @@
     :draw       draw/draw-state!
     :middleware [quil.mw/fun-mode
                  mw/navigation-2d
-                 (mw/mw! :draw #(mw/show-state! (dissoc % :slice) (quil/create-font "Iosevka Regular" 20)))
+                 (mw/mw! :draw #(mw/show-state! (dissoc % :slice :debug) (quil/create-font "Iosevka Regular" 20)))
                  (mw/mw! :draw (partial mw/record-gif! "caves" 20 1))]))
