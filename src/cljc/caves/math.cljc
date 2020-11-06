@@ -134,6 +134,6 @@
 
 
 (defn diff-is-almost-zero? [approx a b]
-  (> (- (max a b)
-        (min a b))
-     approx))
+  (<= (- (max a b)
+         (min a b))
+      approx))

@@ -37,40 +37,34 @@
    :settings     {:title "Caves"
                   :size  [1000 1000]
                   :fps   1
+                  :pause-fps 60
                   :mode  :rgb
                   :debug #{#_:reset  #_:pause #_:state
                            #_:curves #_:lines #_:clearance
                            #_:points #_:index #_:distance #_:coordinates}}})
 
 
-(defn update-state [state]
-  (as-> state $
-    (merge $ (select-keys default-state [:settings]))
-    (assoc $ :fps (quil/current-frame-rate))
-    (cond-> $
-      (get-in $ [:settings :debug :pause])
-      (assoc-in [:settings :fps] 10)
+(defn new-eccentricity [{:keys [value deviation approx limit]}]
+  (let [limit-reached? (math/diff-is-almost-zero? approx limit (quil/abs value))
+        new-deviation  (cond-> deviation limit-reached? -)]
+    {:approx    approx
+     :limit     limit
+     :deviation new-deviation
+     :value     (->> [(- new-deviation) new-deviation]
+                     sort
+                     (apply math/rand-num)
+                     (+ new-deviation value)
+                     (math/constrain (- limit) limit))}))
 
-      (not (get-in $ [:settings :debug :pause]))
-      (as-> $
-          (merge $ (slice-generator/generate-slice $))
-        (update-in $ [:eccentricity :deviation]
-                   (if (math/diff-is-almost-zero?
-                        (:approx (:eccentricity $))
-                        (:limit (:eccentricity $))
-                        (quil/abs (:value (:eccentricity $))))
-                     identity
-                     -))
-        (update-in $ [:eccentricity :value]
-                   + (:limit (:eccentricity $))
-                   (math/rand-num (- (:deviation (:eccentricity $)))
-                                  (:deviation (:eccentricity $))))
-        (update-in $ [:eccentricity :value]
-                   (partial math/constrain (- (:limit (:eccentricity $)))
-                            (:limit (:eccentricity $)))))
 
-      (get-in $ [:settings :debug :reset])
-      (merge default-state))))
+(defn update-state [{{:keys [debug]} :settings, :as state}]
+  (cond-> state
+    :always              (-> (assoc :settings     (:settings default-state))
+                             (assoc :fps          (quil/current-frame-rate)))
+    (not (:pause debug)) (-> (assoc :eccentricity (new-eccentricity (:eccentricity state)))
+                             (merge (slice-generator/generate-slice state)))
+    (:pause debug)       (assoc-in [:settings :fps] (get-in state [:settings :pause-fps]))
+    (:reset debug)       (merge default-state)))
 
 
 (defn draw-state! [state]
