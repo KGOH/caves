@@ -144,13 +144,13 @@
              vals
              (mapcat (partial project-points-on-segment approx))
              (sort-by :angle)
-             (map (comp math/polar->cartesian (partial merge {:eccentricity eccentricity}))))
+             (map (comp math/polar->cartesian (partial merge {:eccentricity (:value eccentricity)}))))
         with-formations (reduce add-formation points formations)
         {fixed :result, :keys [tested-points]} (fix-self-inersecions clearance with-formations)]
     {:slice fixed
      :debug {:clearance tested-points
              :slices    (concat [with-formations points]
-                                (map (->> (partial merge {:eccentricity eccentricity})
+                                (map (->> (partial merge {:eccentricity (:value eccentricity)})
                                           (comp math/polar->cartesian)
                                           (partial map))
                                      (cons main-curve curves)))}}))
