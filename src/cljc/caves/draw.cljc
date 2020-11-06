@@ -78,22 +78,3 @@
       (quil/stroke 255 0 0)
       (quil/stroke 0 100 255))
     (quil/line curr-point point)))
-
-
-(defn draw-state! [state]
-  (apply quil/resize-sketch (get-in state [:settings :size]))
-  (quil/frame-rate (get-in state [:settings :fps]))
-  (quil/color-mode (get-in state [:settings :mode]))
-  (apply quil/background (:background state))
-
-  (quil/with-translation [(/ (quil/width) 2), (/ (quil/height) 2)]
-    (draw-slice! (:slice state) state)
-
-    (when (get-in state [:settings :debug :curves])
-      (doseq [[color points]
-              (map vector [[0 100 255] [0 205 0] [255 0 0] [255 255 0] [0 255 255] [255 0 255]]
-                   (get-in state [:debug :slices]))]
-        (draw-slice! points (assoc state :color color))))
-
-    (when (get-in state [:settings :debug :clearance])
-      (draw-clearance! (get-in state [:debug :clearance]) state))))
