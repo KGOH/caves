@@ -34,14 +34,14 @@
    :background   [0]
    :color        [255]
    :weight       3
-   :settings     {:title "Caves"
-                  :size  [1000 1000]
-                  :fps   1
+   :settings     {:title     "Caves"
+                  :size      [1000 1000]
+                  :fps       1
                   :pause-fps 60
-                  :mode  :rgb
-                  :debug #{#_:reset  #_:pause #_:state
-                           #_:curves #_:lines #_:clearance
-                           #_:points #_:index #_:distance #_:coordinates}}})
+                  :mode      :rgb
+                  :debug     #{#_:reset  #_:pause #_:state     #_:fps
+                               #_:curves #_:lines #_:clearance #_:navigation
+                               #_:points #_:index #_:distance  #_:coordinates}}})
 
 
 (defn new-eccentricity [{:keys [value deviation approx limit]}]
@@ -59,15 +59,15 @@
 
 (defn update-state [{{:keys [debug]} :settings, :as state}]
   (cond-> state
-    :always              (-> (assoc :settings     (:settings default-state))
-                             (assoc :fps          (quil/current-frame-rate)))
+    :always              (-> (assoc-in [:settings]               (:settings default-state))
+                             (assoc-in [:navigation-2d :enabled] (boolean (:navigation debug))))
     (not (:pause debug)) (-> (assoc :eccentricity (new-eccentricity (:eccentricity state)))
                              (merge (slice-generator/generate-slice state)))
     (:pause debug)       (assoc-in [:settings :fps] (get-in state [:settings :pause-fps]))
     (:reset debug)       (merge default-state)))
 
 
-(defn draw-state! [state]
+(defn draw-state! [{{:keys [debug]} :settings, :as state}]
   (apply quil/resize-sketch (get-in state [:settings :size]))
   (quil/frame-rate (get-in state [:settings :fps]))
   (quil/color-mode (get-in state [:settings :mode]))
@@ -76,13 +76,13 @@
   (quil/with-translation [(/ (quil/width) 2), (/ (quil/height) 2)]
     (draw/draw-slice! (:slice state) state)
 
-    (when (get-in state [:settings :debug :curves])
+    (when (:curves debug)
       (doseq [[color points]
               (map vector [[0 100 255] [0 205 0] [255 0 0] [255 255 0] [0 255 255] [255 0 255]]
                    (get-in state [:debug :slices]))]
         (draw/draw-slice! points (assoc state :color color))))
 
-    (when (get-in state [:settings :debug :clearance])
+    (when (:clearance debug)
       (draw/draw-clearance! (get-in state [:debug :clearance]) state))))
 
 

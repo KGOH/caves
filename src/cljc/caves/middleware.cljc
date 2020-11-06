@@ -7,13 +7,15 @@
 (defn mw! [k f] #(update % k juxt f))
 
 
-(defn show-state! [state font]
+(defn show-state! [{{:keys [debug]} :settings, :as state} font]
   (let [info (with-out-str (pprint/pprint state))]
     (quil/text-font font)
-    (when (and (get-in state [:settings :debug :state])
-               (seq info))
+    (when (:fps debug)
       (apply quil/fill (:color state))
-      (quil/text info 25 25))))
+      (quil/text (str (quil/current-frame-rate)) 25 25))
+    (when (and (:state debug) (seq info))
+      (apply quil/fill (:color state))
+      (quil/text info 25 50))))
 
 
 (defn record-gif! [name frames fps _]

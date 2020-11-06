@@ -51,22 +51,22 @@
   (quil/text (str i) x (- y 10)))
 
 
-(defn draw-slice! [points opts]
-  (if (get-in opts [:settings :debug :lines])
+(defn draw-slice! [points {{:keys [debug]} :settings, :as opts}]
+  (if (:lines debug)
     (draw-polygon! points opts)
     (draw-curve! points opts))
 
   (doseq [[index point] (map-indexed vector points)]
-    (when (get-in opts [:settings :debug :points])
+    (when (:points debug)
       (draw-point! point opts))
 
-    (when (get-in opts [:settings :debug :distance])
+    (when (:distance debug)
       (draw-distance! point opts))
 
-    (when (get-in opts [:settings :debug :coordinates])
+    (when (:coordinates debug)
       (draw-coordinate! point opts))
 
-    (when (get-in opts [:settings :debug :index])
+    (when (:index debug)
       (draw-index! index point opts))))
 
 
