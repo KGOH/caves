@@ -35,11 +35,12 @@
    :background   [0]
    :color        [255]
    :weight       3
+   :last-update  0
    :settings     {:render    :2d
                   :title     "Caves"
                   :size      [1000 1000]
-                  :fps       1
-                  :pause-fps 60
+                  :ups       1
+                  :fps       60
                   :mode      :rgb
                   :debug     #{#_:reset  #_:pause #_:state     #_:fps
                                #_:curves #_:lines #_:clearance
@@ -61,13 +62,21 @@
 
 (defn update-state [{{:keys [debug] :as settings} :settings, :as state}]
   (cond-> state
-    :always                          (assoc-in [:settings] (:settings default-state))
-    (not (:pause debug))             (-> (assoc :eccentricity (new-eccentricity (:eccentricity state)))
-                                         (merge (slice-generator/generate-slice state)))
     (and (not (:pause debug))
-         (= :3d (:render settings))) (update :slice #(matrix/set-column % 2 (repeat (matrix/dimension-count % 0) 0)))
-    (:pause debug)                   (assoc-in [:settings :fps] (get-in state [:settings :pause-fps]))
-    (:reset debug)                   (merge default-state)))
+         (<= (/ 1000 (:ups settings)) (- (quil/millis) (:last-update state))))
+    (-> (assoc :eccentricity (new-eccentricity (:eccentricity state)))
+        (merge (slice-generator/generate-slice state))
+        (assoc-in [:last-update] (quil/millis)))
+
+    (and (not (:pause debug))
+         (= :3d (:render settings)))
+    (update :slice #(matrix/set-column % 2 (repeat (matrix/dimension-count % 0) 0)))
+
+    (:reset debug)
+    (merge default-state)
+
+    :always
+    (assoc-in [:settings] (:settings default-state))))
 
 
 (defn draw-state! [{{:keys [debug render]} :settings, :as state}]
