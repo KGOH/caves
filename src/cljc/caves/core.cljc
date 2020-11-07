@@ -40,7 +40,7 @@
                   :pause-fps 60
                   :mode      :rgb
                   :debug     #{#_:reset  #_:pause #_:state     #_:fps
-                               #_:curves #_:lines #_:clearance #_:navigation
+                               #_:curves #_:lines #_:clearance
                                #_:points #_:index #_:distance  #_:coordinates}}})
 
 
@@ -94,6 +94,6 @@
     :update     update-state
     :draw       draw-state!
     :middleware [quil.mw/fun-mode
-                 mw/navigation-2d
+                 quil.mw/navigation-2d
                  (mw/mw! :draw #(mw/show-state! (dissoc % :slice :debug) (quil/create-font "Iosevka Regular" 20)))
                  (mw/mw! :draw (partial mw/record-gif! "caves" 20 1))]))
