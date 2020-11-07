@@ -115,6 +115,7 @@
                     (conj quil.mw/navigation-3d)
 
                     (= :2d (:render settings))
-                    (conj quil.mw/navigation-2d
-                          (mw/mw! :draw #(mw/show-state! (dissoc % :slice :debug) (quil/create-font "Iosevka Regular" 20)))
+                    (conj (mw/mw! :draw #(mw/show-fps! % (quil/create-font "Iosevka" 20)))
+                          quil.mw/navigation-2d
+                          (mw/mw! :draw #(mw/show-state! (dissoc % :slice :debug) (quil/create-font "Iosevka" 20)))
                           (mw/mw! :draw (partial mw/record-gif! "caves" 20 1)))))))
