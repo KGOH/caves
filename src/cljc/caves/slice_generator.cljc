@@ -134,7 +134,7 @@
                  (conj tested-points [curr-point tested])))))))
 
 
-(defn generate-slice [{:keys [approx radius clearance eccentricity curves formations]} & [seed]]
+(defn generate [{:keys [approx radius clearance eccentricity curves formations]} & [seed]]
   (let [[main-curve & curves]
         (map #(generate-curve (assoc % :radius radius) seed) curves)
 
@@ -147,10 +147,17 @@
              (map (comp math/polar->cartesian (partial merge {:eccentricity (:value eccentricity)}))))
         with-formations (reduce add-formation points formations)
         {fixed :result, :keys [tested-points]} (fix-self-inersecions clearance with-formations)]
-    {:slice fixed
-     :debug {:clearance tested-points
-             :slices    (concat [with-formations points]
-                                (map (->> (partial merge {:eccentricity (:value eccentricity)})
-                                          (comp math/polar->cartesian)
-                                          (partial map))
-                                     (cons main-curve curves)))}}))
+    {:with-formations fixed
+     :walls           points
+     :debug           {:clearance tested-points
+                       :slices    (concat [with-formations points]
+                                          (map (->> (partial merge {:eccentricity (:value eccentricity)})
+                                                    (comp math/polar->cartesian)
+                                                    (partial map))
+                                               (cons main-curve curves)))}}))
+
+
+(defn interpolate [start end amount]
+  (mapv (partial mapv (fn [x y] (quil/lerp x y amount)))
+        start
+        end))
