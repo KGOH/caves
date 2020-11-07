@@ -51,23 +51,25 @@
   (quil/text (str i) x (- y 10)))
 
 
-(defn draw-slice! [points {{:keys [debug]} :settings, :as opts}]
+(defn draw-slice! [points {{:keys [debug] :as settings} :settings, :as opts}]
   (if (:lines debug)
     (draw-polygon! points opts)
     (draw-curve! points opts))
 
-  (doseq [[index point] (map-indexed vector points)]
-    (when (:points debug)
-      (draw-point! point opts))
+  (when (= :2d (:render settings))
+    (when (some debug [:points :distance :coordinates :index])
+      (doseq [[index point] (map-indexed vector points)]
+        (when (:points debug)
+          (draw-point! point opts))
 
-    (when (:distance debug)
-      (draw-distance! point opts))
+        (when (:distance debug)
+          (draw-distance! point opts))
 
-    (when (:coordinates debug)
-      (draw-coordinate! point opts))
+        (when (:coordinates debug)
+          (draw-coordinate! point opts))
 
-    (when (:index debug)
-      (draw-index! index point opts))))
+        (when (:index debug)
+          (draw-index! index point opts))))))
 
 
 (defn draw-clearance! [points opts]

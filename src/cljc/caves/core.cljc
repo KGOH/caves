@@ -4,7 +4,8 @@
             [caves.draw :as draw]
             [caves.middleware :as mw]
             [quil.core :as quil]
-            [quil.middleware :as quil.mw]))
+            [quil.middleware :as quil.mw]
+            [clojure.core.matrix :as matrix]))
 
 
 (def default-state
@@ -34,7 +35,8 @@
    :background   [0]
    :color        [255]
    :weight       3
-   :settings     {:title     "Caves"
+   :settings     {:render    :2d
+                  :title     "Caves"
                   :size      [1000 1000]
                   :fps       1
                   :pause-fps 60
@@ -57,23 +59,26 @@
                      (math/constrain (- limit) limit))}))
 
 
-(defn update-state [{{:keys [debug]} :settings, :as state}]
+(defn update-state [{{:keys [debug] :as settings} :settings, :as state}]
   (cond-> state
-    :always              (-> (assoc-in [:settings]               (:settings default-state))
-                             (assoc-in [:navigation-2d :enabled] (boolean (:navigation debug))))
-    (not (:pause debug)) (-> (assoc :eccentricity (new-eccentricity (:eccentricity state)))
-                             (merge (slice-generator/generate-slice state)))
-    (:pause debug)       (assoc-in [:settings :fps] (get-in state [:settings :pause-fps]))
-    (:reset debug)       (merge default-state)))
+    :always                          (assoc-in [:settings] (:settings default-state))
+    (not (:pause debug))             (-> (assoc :eccentricity (new-eccentricity (:eccentricity state)))
+                                         (merge (slice-generator/generate-slice state)))
+    (and (not (:pause debug))
+         (= :3d (:render settings))) (update :slice #(matrix/set-column % 2 (repeat (matrix/dimension-count % 0) 0)))
+    (:pause debug)                   (assoc-in [:settings :fps] (get-in state [:settings :pause-fps]))
+    (:reset debug)                   (merge default-state)))
 
 
-(defn draw-state! [{{:keys [debug]} :settings, :as state}]
+(defn draw-state! [{{:keys [debug render]} :settings, :as state}]
   (apply quil/resize-sketch (get-in state [:settings :size]))
   (quil/frame-rate (get-in state [:settings :fps]))
   (quil/color-mode (get-in state [:settings :mode]))
   (apply quil/background (:background state))
 
-  (quil/with-translation [(/ (quil/width) 2), (/ (quil/height) 2)]
+  (quil/with-translation (if (= :3d render)
+                           [(/ (quil/width) 2), (/ (quil/height) 2), 0]
+                           [(/ (quil/width) 2), (/ (quil/height) 2)])
     (draw/draw-slice! (:slice state) state)
 
     (when (:curves debug)
@@ -87,13 +92,20 @@
 
 
 (defn -main [& args]
-  (quil/defsketch caves
-    :title      (get-in default-state [:settings :title])
-    :size       (get-in default-state [:settings :size])
-    :setup      #(update-state default-state)
-    :update     update-state
-    :draw       draw-state!
-    :middleware [quil.mw/fun-mode
-                 quil.mw/navigation-2d
-                 (mw/mw! :draw #(mw/show-state! (dissoc % :slice :debug) (quil/create-font "Iosevka Regular" 20)))
-                 (mw/mw! :draw (partial mw/record-gif! "caves" 20 1))]))
+  (let [settings (get-in default-state [:settings])]
+    (quil/defsketch caves
+      :title      (:title settings)
+      :size       (:size settings)
+      :setup      #(update-state default-state)
+      :update     update-state
+      :draw       draw-state!
+      :renderer   (if (= :3d (:render settings)) :p3d :java2d)
+      :middleware (cond-> [quil.mw/fun-mode]
+
+                    (= :3d (:render settings))
+                    (conj quil.mw/navigation-3d)
+
+                    (= :2d (:render settings))
+                    (conj quil.mw/navigation-2d
+                          (mw/mw! :draw #(mw/show-state! (dissoc % :slice :debug) (quil/create-font "Iosevka Regular" 20)))
+                          (mw/mw! :draw (partial mw/record-gif! "caves" 20 1)))))))
