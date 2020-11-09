@@ -44,7 +44,7 @@
                      :ups    1
                      :fps    60
                      :mode   :rgb
-                     :debug  #{#_:reset #_:pause #_:state #_:fps #_:curves #_:lines}}
+                     :debug  #{#_:reset #_:pause #_:state #_:fps #_:curves #_:lines #_:disable-shadow}}
    :walls           '()
    :with-formations '()
    :debug           '()})
@@ -100,16 +100,11 @@
 
 
 (defn setup! []
-  (let [state (-> (reduce (fn [state _]
-                            (merge-with conj state (slice-generator/generate state)))
-                          default-state
-                          (range (:render-steps default-state)))
-                  update-state)]
-    #_(apply quil/resize-sketch (get-in state [:settings :size]))
-    (quil/camera 200 200 900 0 0 0 0 1 0)
-    (quil/frame-rate (get-in state [:settings :fps]))
-    (quil/color-mode (get-in state [:settings :mode]))
-    state))
+  #_(apply quil/resize-sketch (get-in default-state [:settings :size]))
+  (quil/camera 200 200 900 0 0 0 0 1 0)
+  (quil/frame-rate (get-in default-state [:settings :fps]))
+  (quil/color-mode (get-in default-state [:settings :mode]))
+  default-state)
 
 
 (defn draw-state! [state]
