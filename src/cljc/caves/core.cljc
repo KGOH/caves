@@ -12,7 +12,7 @@
   {:approx          (/ quil/TWO-PI 31) ;; number here must be greater than max points count
    :radius          400
    :lerp-steps      5
-   :render-steps    10
+   :render-steps    15
    :slice-distance  100
    :eccentricity    {:value     0.8
                      :deviation 0.01
@@ -37,7 +37,7 @@
                       :rule        (fn [[x y]] (and (< 75 y) (> 200 (quil/abs x))))}]
    :background      [0]
    :color           [255]
-   :weight          3
+   :weight          1
    :settings        {:render :3d
                      :title  "Caves"
                      :size   [1000 1000]
@@ -92,7 +92,15 @@
                                           (rest (:walls $))
                                           (rest (:with-formations $)))
                                   (cons (first (:with-formations $)))
-                                  (map-indexed (fn [i points] (matrix/set-column points 2 (repeat (matrix/dimension-count points 0) (* i (:slice-distance $)))))))))
+                                  (map-indexed
+                                   (fn [i points]
+                                     (matrix/set-column points
+                                                        2
+                                                        (repeat (matrix/dimension-count points 0)
+                                                                (* (- i
+                                                                      (inc (* (:lerp-steps state)
+                                                                              (dec (:render-steps state)))))
+                                                                   (:slice-distance $)))))))))
 
     (:reset debug)
     (merge default-state)
