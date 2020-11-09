@@ -56,7 +56,11 @@
                      :debug  #{#_:reset #_:state #_:fps #_:curves #_:lines}}
    :walls           '()
    :with-formations '()
-   :debug           '()})
+   :debug           '()
+   :navigation-3d   {:position  [0 0 0]
+                     :straight  [0 0 100]
+                     :up        [0 1 0]
+                     :step-size 5}})
 
 
 (defn new-eccentricity [{:keys [value deviation approx limit]}]
@@ -105,7 +109,10 @@
 
 
 (defn update-state [{{:keys [debug] :as settings} :settings, :as state}]
+  (apply quil/camera (mapcat (:navigation-3d state) [:position :straight :up]))
   (-> state
+      (update-in [:navigation-3d :position Z] + (get-in state [:navigation-3d :step-size]))
+      (update-in [:navigation-3d :straight Z] + (get-in state [:navigation-3d :step-size]))
       (merge (generate state))
       (assoc-in [:settings] (:settings default-state))
       (cond-> (:reset debug) (merge default-state))))
@@ -139,10 +146,11 @@
       :update     update-state
       :draw       draw-state!
       :renderer   :p3d
-      :navigation-3d {:position [0 0 0]
-                      :straight [0 0 100]
-                      :up       [0 1 0]}
+      :navigation-3d {:position  [0 0 0]
+                      :straight  [0 0 100]
+                      :up        [0 1 0]
+                      :step-size 5}
       :middleware (cond-> [quil.mw/fun-mode
                            (mw/mw! :draw #(mw/show-fps! % (apply quil/create-font (:font settings))))
                            (mw/mw! :draw #(mw/show-state! (dissoc % :slice :debug :slices :walls :formations) (apply quil/create-font (:font settings))))
-                           quil.mw/navigation-3d]))))
+                           #_quil.mw/navigation-3d]))))
