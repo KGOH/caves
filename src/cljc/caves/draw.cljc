@@ -6,14 +6,15 @@
 (defn draw-curve! [points opts]
   (quil/no-fill)
   (quil/stroke-weight (:weight opts))
-  (quil/stroke (quil/map-range (last (first points))
-                               0
-                               (* -1
-                                  (:slice-distance opts)
-                                  (inc (* (:lerp-steps opts) (dec (:render-steps opts)))))
-                               255
-                               25))
-  #_(quil/stroke 255)
+  (if (every? (partial contains? opts) [:slice-distance :lerp-steps :render-steps])
+    (quil/stroke (quil/map-range (last (first points))
+                                 0
+                                 (* -1
+                                    (:slice-distance opts)
+                                    (inc (* (:lerp-steps opts) (dec (:render-steps opts)))))
+                                 255
+                                 25))
+    (quil/stroke 255))
 
   (quil/begin-shape)
   (doseq [p (take (+ 3 (count points)) (cycle points))]

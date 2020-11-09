@@ -1,4 +1,4 @@
-(ns caves.core
+(ns caves.two-dimensional
   (:require [caves.math :as math]
             [caves.slice-generator :as slice-generator]
             [caves.draw :as draw]
@@ -12,8 +12,6 @@
   {:approx          (/ quil/TWO-PI 31) ;; number here must be greater than max points count
    :radius          400
    :lerp-steps      5
-   :render-steps    15
-   :slice-distance  100
    :eccentricity    {:value     0.8
                      :deviation 0.01
                      :limit     0.8
@@ -37,14 +35,16 @@
                       :rule        (fn [[x y]] (and (< 75 y) (> 200 (quil/abs x))))}]
    :background      [0]
    :color           [255]
-   :weight          1
+   :weight          3
    :settings        {:title  "Caves"
                      :size   [1000 1000]
                      :font   ["Iosevka" 20]
                      :ups    1
                      :fps    60
                      :mode   :rgb
-                     :debug  #{#_:reset #_:pause #_:state #_:fps #_:curves #_:lines}}
+                     :debug  #{#_:reset  #_:pause #_:state     #_:fps
+                               #_:curves #_:lines #_:clearance
+                               #_:points #_:index #_:distance  #_:coordinates}}
    :walls           '()
    :with-formations '()
    :debug           '()})
@@ -67,29 +67,9 @@
   (cond-> state
     (and (not (:pause debug))
          (<= (/ 1000 (:ups settings 60)) (- (quil/millis) (:last-update state 0))))
-    (-> ((partial merge-with conj) (slice-generator/generate state))
-        (update :walls             (partial take (:render-steps state)))
-        (update :with-formations   (partial take (:render-steps state)))
-        (update :debug             (partial take (:render-steps state)))
+    (-> (merge (slice-generator/generate state))
+        (as-> $ (assoc $ :slices (:with-formations $)))
         (assoc :eccentricity (new-eccentricity (:eccentricity state)))
-        (as-> $ (assoc $ :slices (->> (mapcat (fn [wall1 wall2 formation2]
-                                                (concat
-                                                 (map (partial slice-generator/interpolate wall1 wall2)
-                                                      (rest (range 0 1 (/ 1 (:lerp-steps $)))))
-                                                 [formation2]))
-                                              (:walls $)
-                                              (rest (:walls $))
-                                              (rest (:with-formations $)))
-                                      (cons (first (:with-formations $)))
-                                      (map-indexed
-                                       (fn [i points]
-                                         (matrix/set-column points
-                                                            2
-                                                            (repeat (matrix/dimension-count points 0)
-                                                                    (* (- i
-                                                                          (inc (* (:lerp-steps state)
-                                                                                  (dec (:render-steps state)))))
-                                                                       (:slice-distance $)))))))))
         (assoc-in [:last-update] (quil/millis)))
 
     (:reset debug)
@@ -100,35 +80,39 @@
 
 
 (defn setup! []
-  (let [state (-> (reduce (fn [state _]
-                            (merge-with conj state (slice-generator/generate state)))
-                          default-state
-                          (range (:render-steps default-state)))
-                  update-state)]
-    #_(apply quil/resize-sketch (get-in state [:settings :size]))
-    (quil/camera 200 200 900 0 0 0 0 1 0)
-    (quil/frame-rate (get-in state [:settings :fps]))
-    (quil/color-mode (get-in state [:settings :mode]))
-    state))
+  #_(apply quil/resize-sketch (get-in default-state [:settings :size]))
+  (quil/frame-rate (get-in default-state [:settings :fps]))
+  (quil/color-mode (get-in default-state [:settings :mode]))
+  default-state)
 
 
-(defn draw-state! [state]
+(defn draw-state! [{{:keys [debug render]} :settings, :as state}]
   (apply quil/background (:background state))
-  (quil/with-translation [(/ (quil/width) 2), (/ (quil/height) 2), 0]
-    (doseq [slice (:slices state)]
-      (draw/draw-slice! slice state))))
+  (quil/with-translation [(/ (quil/width) 2), (/ (quil/height) 2)]
+
+    (draw/draw-slice! (:slices state) state)
+
+    (when (:curves debug)
+      (doseq [[color points]
+              (map vector [[0 100 255] [0 205 0] [255 0 0] [255 255 0] [0 255 255] [255 0 255]]
+                   (get-in state [:debug :slices]))]
+        (draw/draw-slice! points (assoc state :color color))))
+
+    (when (:clearance debug)
+      (draw/draw-clearance! (get-in state [:debug :clearance]) state))))
 
 
 (defn -main [& args]
   (let [settings (get-in default-state [:settings])]
-    (quil/defsketch caves
+    (quil/defsketch caves2d
       :title      (:title settings)
       :size       (:size settings)
       :setup      setup!
       :update     update-state
       :draw       draw-state!
-      :renderer   :p3d
+      :renderer   :java2d
       :middleware (cond-> [quil.mw/fun-mode
                            (mw/mw! :draw #(mw/show-fps! % (apply quil/create-font (:font settings))))
                            (mw/mw! :draw #(mw/show-state! (dissoc % :slice :debug :slices :walls :formations) (apply quil/create-font (:font settings))))
-                           (conj quil.mw/navigation-3d)]))))
+                           quil.mw/navigation-2d
+                           (mw/mw! :draw (partial mw/record-gif! "caves" 20 1))]))))
