@@ -43,7 +43,7 @@
                      :fps    60
                      :mode   :rgb
                      :debug  #{#_:reset  #_:pause #_:state     #_:fps
-                               #_:curves #_:lines #_:clearance :disable-shadow
+                               #_:curves #_:lines #_:clearance
                                #_:points #_:index #_:distance  #_:coordinates}}
    :walls           '()
    :with-formations '()

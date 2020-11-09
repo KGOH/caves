@@ -46,14 +46,14 @@
                       :rule        (fn [[x y]] (and (< 75 y) (> 200 (quil/abs x))))}]
    :background      [0]
    :color           [255]
-   :weight          1
+   :weight          2
    :settings        {:title  "Caves"
                      :size   [1000 1000]
                      :font   ["Iosevka" 20]
                      :ups    1
                      :fps    60
                      :mode   :rgb
-                     :debug  #{#_:reset #_:state #_:fps #_:curves #_:lines #_:disable-shadow}}
+                     :debug  #{#_:reset #_:state #_:fps #_:curves #_:lines}}
    :walls           '()
    :with-formations '()
    :debug           '()})
@@ -121,8 +121,13 @@
 
 (defn draw-state! [state]
   (apply quil/background (:background state))
-  (doseq [slice (:slices state)]
-    (draw/draw-slice! slice state)))
+  (let [slices (:slices state)
+        fov [(-> state :navigation-3d :position get-z)
+             (+ (-> state :navigation-3d :position get-z)
+                (* (:render-steps state)
+                   (:slice-distance state)))]]
+    (doseq [slice slices]
+      (draw/draw-slice! slice (assoc state :fov fov)))))
 
 
 (defn -main [& args]

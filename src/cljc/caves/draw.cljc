@@ -3,18 +3,16 @@
             [caves.math :as math]))
 
 
-(defn draw-curve! [points {{:keys [debug] :as settings} :settings, :as opts}]
+(defn draw-curve! [points opts]
   (quil/no-fill)
   (quil/stroke-weight (:weight opts))
-  (if (:disable-shadow debug)
-    (apply quil/stroke (:color opts))
+  (if (:fov opts)
     (quil/stroke (quil/map-range (last (first points))
-                                 0
-                                 (* -1
-                                    (:slice-distance opts)
-                                    (inc (* (:lerp-steps opts) (dec (:render-steps opts)))))
+                                 (first (:fov opts))
+                                 (last (:fov opts))
                                  (first (:color opts))
-                                 25)))
+                                 (first (:background opts))))
+    (apply quil/stroke (:color opts)))
 
   (quil/begin-shape)
   (doseq [p (take (+ 3 (count points)) (cycle points))]
@@ -25,15 +23,13 @@
 (defn draw-polygon! [points {{:keys [debug] :as settings} :settings, :as opts}]
   (quil/no-fill)
   (quil/stroke-weight (:weight opts))
-  (if (:disable-shadow debug)
-    (apply quil/stroke (:color opts))
+  (if (:fov opts)
     (quil/stroke (quil/map-range (last (first points))
-                                 0
-                                 (* -1
-                                    (:slice-distance opts)
-                                    (inc (* (:lerp-steps opts) (dec (:render-steps opts)))))
+                                 (first (:fov opts))
+                                 (last (:fov opts))
                                  (first (:color opts))
-                                 25)))
+                                 (first (:background opts))))
+    (apply quil/stroke (:color opts)))
 
   (quil/begin-shape)
   (doseq [p points]
