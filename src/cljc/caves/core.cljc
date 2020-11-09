@@ -53,10 +53,7 @@
                      :ups    1
                      :fps    60
                      :mode   :rgb
-                     :debug  #{#_:reset #_:state #_:fps #_:curves #_:lines}}
-   :walls           '()
-   :with-formations '()
-   :debug           '()
+                     :debug  #{#_:reset #_:state #_:fps #_:lines}}
    :navigation-3d   {:position  [0 0 0]
                      :straight  [0 0 100]
                      :up        [0 1 0]
@@ -129,10 +126,8 @@
 (defn draw-state! [state]
   (apply quil/background (:background state))
   (let [slices (:slices state)
-        fov [(-> state :navigation-3d :position get-z)
-             (+ (-> state :navigation-3d :position get-z)
-                (* (:render-steps state)
-                   (:slice-distance state)))]]
+        fov {:current-pos (-> state :navigation-3d :position get-z)
+             :distance    (* (:render-steps state) (:slice-distance state))}]
     (doseq [slice slices]
       (draw/draw-slice! slice (assoc state :fov fov)))))
 
@@ -149,7 +144,7 @@
       :navigation-3d {:position  [0 0 0]
                       :straight  [0 0 100]
                       :up        [0 1 0]
-                      :step-size 5}
+                      :step-size 100}
       :middleware (cond-> [quil.mw/fun-mode
                            (mw/mw! :draw #(mw/show-fps! % (apply quil/create-font (:font settings))))
                            (mw/mw! :draw #(mw/show-state! (dissoc % :slice :debug :slices :walls :formations) (apply quil/create-font (:font settings))))

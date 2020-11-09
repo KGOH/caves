@@ -3,34 +3,32 @@
             [caves.math :as math]))
 
 
-(defn draw-curve! [points opts]
+(defn draw-curve! [points {:keys        [weight fov]
+                           [color]      :color
+                           [background] :background}]
   (quil/no-fill)
-  (quil/stroke-weight (:weight opts))
-  (if (:fov opts)
-    (quil/stroke (quil/map-range (last (first points))
-                                 (first (:fov opts))
-                                 (last (:fov opts))
-                                 (first (:color opts))
-                                 (first (:background opts))))
-    (apply quil/stroke (:color opts)))
-
+  (quil/stroke-weight weight)
+  (let [z (last (first points))
+        {:keys [current-pos distance]} fov]
+    (if (nil? current-pos)
+      (apply quil/stroke color)
+      (quil/stroke (quil/map-range (quil/abs (- z current-pos)) 0 distance color background))))
   (quil/begin-shape)
   (doseq [p (take (+ 3 (count points)) (cycle points))]
     (apply quil/curve-vertex p))
   (quil/end-shape))
 
 
-(defn draw-polygon! [points {{:keys [debug] :as settings} :settings, :as opts}]
+(defn draw-polygon! [points {:keys        [weight fov]
+                             [color]      :color
+                             [background] :background}]
   (quil/no-fill)
-  (quil/stroke-weight (:weight opts))
-  (if (:fov opts)
-    (quil/stroke (quil/map-range (last (first points))
-                                 (first (:fov opts))
-                                 (last (:fov opts))
-                                 (first (:color opts))
-                                 (first (:background opts))))
-    (apply quil/stroke (:color opts)))
-
+  (quil/stroke-weight weight)
+  (let [z (last (first points))
+        {:keys [current-pos distance]} fov]
+    (if (nil? current-pos)
+      (apply quil/stroke color)
+      (quil/stroke (quil/map-range (quil/abs (- z current-pos)) 0 distance color background))))
   (quil/begin-shape)
   (doseq [p points]
     (apply quil/vertex p))
