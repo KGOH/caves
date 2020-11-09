@@ -8,11 +8,20 @@
             [clojure.core.matrix :as matrix]))
 
 
+(def Z 2)
+(def Y 1)
+(def X 0)
+
+(def get-z #(get % Z 0))
+(def get-y #(get % Y 0))
+(def get-x #(get % X 0))
+
+
 (def default-state
   {:approx          (/ quil/TWO-PI 31) ;; number here must be greater than max points count
    :radius          400
    :lerp-steps      5
-   :render-steps    15
+   :render-steps    50
    :slice-distance  100
    :eccentricity    {:value     0.8
                      :deviation 0.01
@@ -44,7 +53,7 @@
                      :ups    1
                      :fps    60
                      :mode   :rgb
-                     :debug  #{#_:reset #_:pause #_:state #_:fps #_:curves #_:lines #_:disable-shadow}}
+                     :debug  #{#_:reset #_:state #_:fps #_:curves #_:lines #_:disable-shadow}}
    :walls           '()
    :with-formations '()
    :debug           '()})
@@ -63,45 +72,48 @@
                      (math/constrain (- limit) limit))}))
 
 
+(defn generate [{:keys [slices walls render-steps lerp-steps slice-distance] :as state}]
+  (let [z-coord        (-> state :navigation-3d :position get-z)
+        visible-slices (filterv (comp (partial <= z-coord) get-z first) slices)
+        amount-to-gen  (-> render-steps
+                           (- (count visible-slices))
+                           (/ (inc lerp-steps))
+                           quil/ceil)
+        last-generated (or (some->> (last walls) (hash-map :walls))
+                           (slice-generator/generate state))
+        last-z         (-> visible-slices last first (get Z z-coord))
+        new-slices     (repeatedly amount-to-gen #(slice-generator/generate state))
+        interpolated   (->> new-slices
+                            (cons last-generated)
+                            (partition 2 1)
+                            (mapcat
+                             (fn [[{wall1 :walls} {wall2 :walls, formations2 :with-formations}]]
+                               (conj (mapv (partial slice-generator/interpolate wall1 wall2)
+                                           (rest (range 0 1 (/ 1 lerp-steps))))
+                                     formations2)))
+                            (map-indexed
+                             (fn [i points]
+                               (->> i
+                                    inc
+                                    (* slice-distance)
+                                    (+ last-z)
+                                    (repeat (matrix/dimension-count points X))
+                                    (matrix/set-column points Z)))))]
+    (cond-> {:slices (into visible-slices interpolated)}
+      (seq new-slices) (-> (assoc :walls (mapv :walls new-slices))
+                           (assoc :with-formations (mapv :with-formations new-slices))))))
+
+
 (defn update-state [{{:keys [debug] :as settings} :settings, :as state}]
-  (cond-> state
-    (and (not (:pause debug))
-         (<= (/ 1000 (:ups settings 60)) (- (quil/millis) (:last-update state 0))))
-    (-> ((partial merge-with conj) (slice-generator/generate state))
-        (update :walls             (partial take (:render-steps state)))
-        (update :with-formations   (partial take (:render-steps state)))
-        (update :debug             (partial take (:render-steps state)))
-        (assoc :eccentricity (new-eccentricity (:eccentricity state)))
-        (as-> $ (assoc $ :slices (->> (mapcat (fn [wall1 wall2 formation2]
-                                                (concat
-                                                 (map (partial slice-generator/interpolate wall1 wall2)
-                                                      (rest (range 0 1 (/ 1 (:lerp-steps $)))))
-                                                 [formation2]))
-                                              (:walls $)
-                                              (rest (:walls $))
-                                              (rest (:with-formations $)))
-                                      (cons (first (:with-formations $)))
-                                      (map-indexed
-                                       (fn [i points]
-                                         (matrix/set-column points
-                                                            2
-                                                            (repeat (matrix/dimension-count points 0)
-                                                                    (* (- i
-                                                                          (inc (* (:lerp-steps state)
-                                                                                  (dec (:render-steps state)))))
-                                                                       (:slice-distance $)))))))))
-        (assoc-in [:last-update] (quil/millis)))
-
-    (:reset debug)
-    (merge default-state)
-
-    :always
-    (assoc-in [:settings] (:settings default-state))))
+  (-> state
+      (merge (generate state))
+      (assoc-in [:settings] (:settings default-state))
+      (cond-> (:reset debug) (merge default-state))))
 
 
 (defn setup! []
   #_(apply quil/resize-sketch (get-in default-state [:settings :size]))
-  (quil/camera 200 200 900 0 0 0 0 1 0)
+  (quil/camera 0 0 0 0 0 100 0 1 0)
   (quil/frame-rate (get-in default-state [:settings :fps]))
   (quil/color-mode (get-in default-state [:settings :mode]))
   default-state)
@@ -109,9 +121,8 @@
 
 (defn draw-state! [state]
   (apply quil/background (:background state))
-  (quil/with-translation [(/ (quil/width) 2), (/ (quil/height) 2), 0]
-    (doseq [slice (:slices state)]
-      (draw/draw-slice! slice state))))
+  (doseq [slice (:slices state)]
+    (draw/draw-slice! slice state)))
 
 
 (defn -main [& args]
@@ -123,7 +134,10 @@
       :update     update-state
       :draw       draw-state!
       :renderer   :p3d
+      :navigation-3d {:position [0 0 0]
+                      :straight [0 0 100]
+                      :up       [0 1 0]}
       :middleware (cond-> [quil.mw/fun-mode
                            (mw/mw! :draw #(mw/show-fps! % (apply quil/create-font (:font settings))))
                            (mw/mw! :draw #(mw/show-state! (dissoc % :slice :debug :slices :walls :formations) (apply quil/create-font (:font settings))))
-                           (conj quil.mw/navigation-3d)]))))
+                           quil.mw/navigation-3d]))))
