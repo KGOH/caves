@@ -3,36 +3,50 @@
             [caves.math :as math]))
 
 
-(defn draw-curve! [points {:keys        [weight fov]
+(defn draw-curve! [points {:keys        [weight fov]   ;; TODO: add some render margins
                            [color]      :color
                            [background] :background}]
-  (quil/no-fill)
-  (quil/stroke-weight weight)
   (let [z (last (first points))
-        {:keys [current-pos distance]} fov]
-    (if (nil? current-pos)
-      (apply quil/stroke color)
-      (quil/stroke (quil/map-range (quil/abs (- z current-pos)) 0 distance color background))))
-  (quil/begin-shape)
-  (doseq [p (take (+ 3 (count points)) (cycle points))]
-    (apply quil/curve-vertex p))
-  (quil/end-shape))
+        {:keys [current-pos distance straight]} fov]
+    (when (or (nil? straight)
+              (and (<= 0 straight)
+                   (<= 0 (- z current-pos)))
+              (and (>= 0 straight)
+                   (>= 0 (- z current-pos))))
+      (quil/no-fill)
+      (quil/stroke-weight weight)
+
+      (if (nil? current-pos)
+        (apply quil/stroke color)
+        (quil/stroke (quil/map-range (quil/abs (- z current-pos)) 0 distance color background)))
+
+      (quil/begin-shape)
+      (doseq [p (take (+ 3 (count points)) (cycle points))]
+        (apply quil/curve-vertex p))
+      (quil/end-shape))))
 
 
 (defn draw-polygon! [points {:keys        [weight fov]
                              [color]      :color
                              [background] :background}]
-  (quil/no-fill)
-  (quil/stroke-weight weight)
   (let [z (last (first points))
-        {:keys [current-pos distance]} fov]
-    (if (nil? current-pos)
-      (apply quil/stroke color)
-      (quil/stroke (quil/map-range (quil/abs (- z current-pos)) 0 distance color background))))
-  (quil/begin-shape)
-  (doseq [p points]
-    (apply quil/vertex p))
-  (quil/end-shape :close))
+        {:keys [current-pos distance straight]} fov]
+    (when (or (nil? straight)
+              (and (<= 0 straight)
+                   (<= 0 (- z current-pos)))
+              (and (>= 0 straight)
+                   (>= 0 (- z current-pos))))
+      (quil/no-fill)
+      (quil/stroke-weight weight)
+
+      (if (nil? current-pos)
+        (apply quil/stroke color)
+        (quil/stroke (quil/map-range (quil/abs (- z current-pos)) 0 distance color background)))
+
+      (quil/begin-shape)
+      (doseq [p points]
+        (apply quil/vertex p))
+      (quil/end-shape :close))))
 
 
 (defn draw-point! [[x y] opts]

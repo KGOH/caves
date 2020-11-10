@@ -127,7 +127,8 @@
   (apply quil/background (:background state))
   (let [slices (:slices state)
         fov {:current-pos (-> state :navigation-3d :position get-z)
-             :distance    (* (:render-steps state) (:slice-distance state))}]
+             :distance    (* (:render-steps state) (:slice-distance state))
+             :straight    (-> state :navigation-3d :straight get-z)}]
     (doseq [slice slices]
       (draw/draw-slice! slice (assoc state :fov fov)))))
 
