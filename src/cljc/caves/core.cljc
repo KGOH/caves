@@ -110,7 +110,7 @@
                                       (repeat (matrix/dimension-count points X))
                                       (matrix/set-column points Z)))))]
     (cond-> {:slices (into (vec visible-slices) interpolated)}
-      (seq new-slices) (-> (assoc :walls (mapv :walls new-slices))
+      (seq new-slices) (-> (assoc :walls (mapv :walls new-slices)) ;; TODO: moving back will cause loss of last wall
                            (assoc :with-formations (mapv :with-formations new-slices))))))
 
 

@@ -17,7 +17,7 @@
       (quil/stroke-weight weight)
 
       (if (nil? current-pos)
-        (apply quil/stroke color)
+        (quil/stroke color)
         (quil/stroke (quil/map-range (quil/abs (- z current-pos)) 0 distance color background)))
 
       (quil/begin-shape)
@@ -40,7 +40,7 @@
       (quil/stroke-weight weight)
 
       (if (nil? current-pos)
-        (apply quil/stroke color)
+        (quil/stroke color)
         (quil/stroke (quil/map-range (quil/abs (- z current-pos)) 0 distance color background)))
 
       (quil/begin-shape)
