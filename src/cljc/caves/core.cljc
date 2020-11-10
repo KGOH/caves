@@ -74,33 +74,42 @@
 
 
 (defn generate [{:keys [slices walls render-steps lerp-steps slice-distance] :as state}]
-  (let [z-coord        (-> state :navigation-3d :position get-z)
-        visible-slices (filterv (comp (partial <= z-coord) get-z first) slices)
-        amount-to-gen  (-> render-steps
-                           (- (count visible-slices))
-                           (/ (inc lerp-steps))
-                           quil/ceil)
-        last-generated (or (some->> (last walls) (hash-map :walls))
-                           (slice-generator/generate state))
-        last-z         (-> visible-slices last first (get Z z-coord))
-        new-slices     (repeatedly amount-to-gen #(slice-generator/generate state))
-        interpolated   (->> new-slices
-                            (cons last-generated)
-                            (partition 2 1)
-                            (mapcat
-                             (fn [[{wall1 :walls} {wall2 :walls, formations2 :with-formations}]]
-                               (conj (mapv (partial slice-generator/interpolate wall1 wall2)
-                                           (rest (range 0 1 (/ 1 lerp-steps))))
-                                     formations2)))
-                            (map-indexed
-                             (fn [i points]
-                               (->> i
-                                    inc
-                                    (* slice-distance)
-                                    (+ last-z)
-                                    (repeat (matrix/dimension-count points X))
-                                    (matrix/set-column points Z)))))]
-    (cond-> {:slices (into visible-slices interpolated)}
+  (let [z-coord          (-> state :navigation-3d :position get-z)
+        visible-distance (* (+ lerp-steps render-steps) slice-distance)
+        get-slice-z-pos  (comp get-z first)
+        behind?          (partial > z-coord)
+        visible?         #(<= (- z-coord visible-distance) % (+ z-coord visible-distance))
+        invisible?       (complement visible?)
+
+        visible-slices   (->> slices
+                              (drop-while (comp invisible? get-slice-z-pos))
+                              (take-while (comp visible? get-slice-z-pos)))
+        [behind ahead]   (split-with (comp behind? get-slice-z-pos) visible-slices)
+        amount-to-gen    (-> render-steps
+                             (- (count ahead))
+                             (/ (inc lerp-steps))
+                             quil/ceil)
+        last-generated   (or (some->> (last walls) (hash-map :walls))
+                             (slice-generator/generate state))
+        last-z           (-> ahead last first (get Z z-coord))
+        new-slices       (repeatedly amount-to-gen #(slice-generator/generate state))
+        interpolated     (->> new-slices
+                              (cons last-generated)
+                              (partition 2 1)
+                              (mapcat
+                               (fn [[{wall1 :walls} {wall2 :walls, formations2 :with-formations}]]
+                                 (conj (mapv (partial slice-generator/interpolate wall1 wall2)
+                                             (rest (range 0 1 (/ 1 lerp-steps))))
+                                       formations2)))
+                              (map-indexed
+                               (fn [i points]
+                                 (->> i
+                                      inc
+                                      (* slice-distance)
+                                      (+ last-z)
+                                      (repeat (matrix/dimension-count points X))
+                                      (matrix/set-column points Z)))))]
+    (cond-> {:slices (into (vec visible-slices) interpolated)}
       (seq new-slices) (-> (assoc :walls (mapv :walls new-slices))
                            (assoc :with-formations (mapv :with-formations new-slices))))))
 
