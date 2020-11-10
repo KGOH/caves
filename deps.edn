@@ -2,7 +2,7 @@
  :deps     {org.clojure/clojure       {:mvn/version "LATEST"}
             org.clojure/clojurescript {:mvn/version "LATEST"}
             quil/quil                 {:mvn/version "LATEST"}
-            gil/gil                   {:mvn/version "1.0.0-SNAPSHOT"}
+            #_#_gil/gil               {:mvn/version "1.0.0-SNAPSHOT"}
             net.mikera/core.matrix    {:mvn/version "LATEST"}}
  :jvm-opts ^:replace ["-Xmx512M" "-XX:-OmitStackTraceInFastThrow"]
  :aliases  {:clj-paths ["src/clj" "src/cljc"]}}

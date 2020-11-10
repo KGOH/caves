@@ -1,6 +1,6 @@
 (ns caves.middleware
   (:require [quil.core :as quil]
-            [gil.core :as gil]
+            #_[gil.core :as gil]
             [clojure.pprint :as pprint]))
 
 
@@ -22,5 +22,5 @@
       (quil/text info 25 50))))
 
 
-(defn record-gif! [name frames fps _]
-  (gil/save-animation (str name ".gif") frames (int (/ 100 fps))))
+#_(defn record-gif! [name frames fps _]
+    (gil/save-animation (str name ".gif") frames (int (/ 100 fps))))

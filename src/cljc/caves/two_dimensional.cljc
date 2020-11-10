@@ -115,4 +115,4 @@
                            (mw/mw! :draw #(mw/show-fps! % (apply quil/create-font (:font settings))))
                            (mw/mw! :draw #(mw/show-state! (dissoc % :slice :debug :slices :walls :formations) (apply quil/create-font (:font settings))))
                            quil.mw/navigation-2d
-                           (mw/mw! :draw (partial mw/record-gif! "caves" 20 1))]))))
+                           #_(mw/mw! :draw (partial mw/record-gif! "caves" 20 1))]))))
