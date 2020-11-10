@@ -63,7 +63,7 @@
 
 (defn draw-coordinate! [[x y] opts]
   (apply quil/fill [180])
-  (quil/text-font (quil/create-font "Iosevka Regular" 10))
+  (quil/text-font #?(:cljs (get-in opts [:settings :font]), :clj (quil/create-font (get-in opts [:settings :font]) 20)))
   (quil/text (str (int x) "," (int y)) x y)
   (let [{:keys [angle radius]} (math/cartesian->polar [x y])]
     (quil/text (str (int (* quil/RAD-TO-DEG angle 10)) "," (int radius)) x (+ y 12))))
@@ -71,7 +71,7 @@
 
 (defn draw-index! [i [x y] opts]
   (apply quil/fill [180])
-  (quil/text-font (quil/create-font "Iosevka Regular" 10))
+  (quil/text-font #?(:cljs (get-in opts [:settings :font]), :clj (quil/create-font (get-in opts [:settings :font]) 20)))
   (quil/text (str i) x (- y 10)))
 
 

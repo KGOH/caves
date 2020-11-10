@@ -9,14 +9,14 @@
 
 
 (def default-state
-  {:approx          (/ quil/TWO-PI 31) ;; number here must be greater than max points count
+  {:approx          0.20268340264597245 #_(/ quil/TWO-PI 31) ;; number here must be greater than max points count
    :radius          400
    :lerp-steps      5
    :eccentricity    {:value     0.8
                      :deviation 0.01
                      :limit     0.8
                      :approx    0.00001}
-   :clearance       {:radius [15 35] :angle (quil/radians 30)}
+   :clearance       {:radius [15 35] :angle 0.5235988 #_(quil/radians 30)}
    :curves          [{:deviation 50, :points-count 9}
                      {:deviation 10, :points-count 30}]
    :formations      [{:height      [20 90] ;; Stalactites ;; TODO: Stalagnates
@@ -38,7 +38,7 @@
    :weight          3
    :settings        {:title  "Caves"
                      :size   [1000 1000]
-                     :font   ["Iosevka" 20]
+                     :font   "Iosevka",
                      :ups    1
                      :fps    60
                      :mode   :rgb
@@ -112,7 +112,7 @@
       :draw       draw-state!
       :renderer   :java2d
       :middleware (cond-> [quil.mw/fun-mode
-                           (mw/mw! :draw #(mw/show-fps! % (apply quil/create-font (:font settings))))
-                           (mw/mw! :draw #(mw/show-state! (dissoc % :slice :debug :slices :walls :formations) (apply quil/create-font (:font settings))))
+                           (mw/mw! :draw #(mw/show-fps! % #?(:cljs (:font settings), :clj (quil/create-font (:font settings) 10))))
+                           (mw/mw! :draw #(mw/show-state! (dissoc % :slice :debug :slices :walls :formations) #?(:cljs (:font settings), :clj (quil/create-font (:font settings) 20))))
                            quil.mw/navigation-2d
                            #_(mw/mw! :draw (partial mw/record-gif! "caves" 20 1))]))))

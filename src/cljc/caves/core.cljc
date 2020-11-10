@@ -2,8 +2,8 @@
   (:require [caves.math :as math]
             [caves.slice-generator :as slice-generator]
             [caves.draw :as draw]
-            [caves.middleware :as mw]
-            [quil.core :as quil]
+
+            [quil.core :as quil :include-macros true]
             [quil.middleware :as quil.mw]
             [clojure.core.matrix :as matrix]))
 
@@ -18,7 +18,7 @@
 
 
 (def default-state
-  {:approx          (/ quil/TWO-PI 31) ;; number here must be greater than max points count
+  {:approx          0.20268340264597245 #_(/ quil/TWO-PI 31) ;; number here must be greater than max points count
    :radius          400
    :lerp-steps      5
    :render-steps    50
@@ -28,7 +28,7 @@
                      :deviation 0.01
                      :limit     0.8
                      :approx    0.00001}
-   :clearance       {:radius [15 35] :angle (quil/radians 30)}
+   :clearance       {:radius [15 35] :angle 0.5235988 #_(quil/radians 30)}
    :curves          [{:deviation 50, :points-count 9}
                      {:deviation 10, :points-count 30}]
    :formations      [{:height      [20 90] ;; Stalactites ;; TODO: Stalagnates
@@ -50,12 +50,12 @@
    :weight          2
    :settings        {:title  "Caves"
                      :size   [1000 1000]
-                     :font   ["Iosevka" 20]
+                     :font   "Iosevka",
                      :ups    1
                      :fps    60
                      :mode   :rgb
                      :debug  #{#_:reset #_:state #_:fps #_:lines}}
-   :navigation-3d   {:position  [0 0 0]
+   #_#_:navigation-3d   {:position  [0 0 0]
                          :straight  [0 0 100]
                          :up        [0 1 0]
                          :step-size 5}})
@@ -122,7 +122,6 @@
 (defn teleport [state]
   (let [z-coord (-> state :navigation-3d :position get-z)]
     (when (> (quil/abs z-coord) (:boundary state))
-      (prn 'TELEPORT z-coord)
       (-> state
           (update :slices (partial mapv (partial move-slice (- z-coord))))
           (update-in [:navigation-3d :position Z] - z-coord)
@@ -130,9 +129,9 @@
 
 
 (defn update-state [{{:keys [debug] :as settings} :settings, :as state}]
-  (apply quil/camera (mapcat (:navigation-3d state) [:position :straight :up]))
+  #_(apply quil/camera (mapcat (:navigation-3d state) [:position :straight :up]))
   (-> state
-      (update-in [:navigation-3d :position Z] + (get-in state [:navigation-3d :step-size]))
+      #_#_(update-in [:navigation-3d :position Z] + (get-in state [:navigation-3d :step-size]))
       (update-in [:navigation-3d :straight Z] + (get-in state [:navigation-3d :step-size]))
       (merge (generate state))
       (merge (teleport state))
@@ -142,7 +141,7 @@
 
 (defn setup! []
   #_(apply quil/resize-sketch (get-in default-state [:settings :size]))
-  (quil/frame-rate (get-in default-state [:settings :fps]))
+  #_(quil/frame-rate (get-in default-state [:settings :fps]))
   (quil/color-mode (get-in default-state [:settings :mode]))
   default-state)
 
@@ -157,7 +156,7 @@
       (draw/draw-slice! slice (assoc state :fov fov)))))
 
 
-(defn -main [& args]
+(defn ^:export run-sketch []
   (let [settings (get-in default-state [:settings])]
     (quil/defsketch caves
       :title      (:title settings)
@@ -171,6 +170,8 @@
                       :up        [0 1 0]
                       :step-size 100}
       :middleware (cond-> [quil.mw/fun-mode
-                           (mw/mw! :draw #(mw/show-fps! % (apply quil/create-font (:font settings))))
-                           (mw/mw! :draw #(mw/show-state! (dissoc % :slice :debug :slices :walls :formations) (apply quil/create-font (:font settings))))
-                           #_quil.mw/navigation-3d]))))
+                           quil.mw/navigation-3d]))))
+
+
+(defn -main [& args]
+  (run-sketch))
