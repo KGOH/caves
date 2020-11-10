@@ -23,6 +23,7 @@
    :lerp-steps      5
    :render-steps    50
    :slice-distance  100
+   :boundary        10000000
    :eccentricity    {:value     0.8
                      :deviation 0.01
                      :limit     0.8
@@ -55,9 +56,9 @@
                      :mode   :rgb
                      :debug  #{#_:reset #_:state #_:fps #_:lines}}
    :navigation-3d   {:position  [0 0 0]
-                     :straight  [0 0 100]
-                     :up        [0 1 0]
-                     :step-size 5}})
+                         :straight  [0 0 100]
+                         :up        [0 1 0]
+                         :step-size 5}})
 
 
 (defn new-eccentricity [{:keys [value deviation approx limit]}]
@@ -114,19 +115,33 @@
                            (assoc :with-formations (mapv :with-formations new-slices))))))
 
 
+(defn move-slice [distance slice]
+  (matrix/add slice (repeat (matrix/dimension-count slice X) [0 0 distance])))
+
+
+(defn teleport [state]
+  (let [z-coord (-> state :navigation-3d :position get-z)]
+    (when (> (quil/abs z-coord) (:boundary state))
+      (prn 'TELEPORT z-coord)
+      (-> state
+          (update :slices (partial mapv (partial move-slice (- z-coord))))
+          (update-in [:navigation-3d :position Z] - z-coord)
+          (update-in [:navigation-3d :straight Z] - z-coord)))))
+
+
 (defn update-state [{{:keys [debug] :as settings} :settings, :as state}]
   (apply quil/camera (mapcat (:navigation-3d state) [:position :straight :up]))
   (-> state
       (update-in [:navigation-3d :position Z] + (get-in state [:navigation-3d :step-size]))
       (update-in [:navigation-3d :straight Z] + (get-in state [:navigation-3d :step-size]))
       (merge (generate state))
+      (merge (teleport state))
       (assoc-in [:settings] (:settings default-state))
       (cond-> (:reset debug) (merge default-state))))
 
 
 (defn setup! []
   #_(apply quil/resize-sketch (get-in default-state [:settings :size]))
-  (quil/camera 0 0 0 0 0 100 0 1 0)
   (quil/frame-rate (get-in default-state [:settings :fps]))
   (quil/color-mode (get-in default-state [:settings :mode]))
   default-state)
