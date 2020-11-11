@@ -101,7 +101,7 @@
                                (fn [[{wall1 :walls} {wall2 :walls, formations2 :with-formations}]]
                                  (conj (mapv (partial slice-generator/interpolate wall1 wall2)
                                              (rest (range 0 1 (/ 1 lerp-steps))))
-                                       formations2)))
+                                       (update-in (vec formations2) [0 Y] int))))
                               (map-indexed
                                (fn [i points]
                                  (->> i

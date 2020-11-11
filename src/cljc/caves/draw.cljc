@@ -6,7 +6,8 @@
 (defn draw-curve! [points {:keys        [weight fov]   ;; TODO: add some render margins
                            [color]      :color
                            [background] :background}]
-  (let [z (last (first points))
+  (let [z                                       (last (first points))
+        flag                                    (and false (int? (second (first points))))
         {:keys [current-pos distance straight]} fov]
     (when (or (nil? straight)
               (and (<= 0 straight)
@@ -19,6 +20,7 @@
       (if (nil? current-pos)
         (quil/stroke color)
         (quil/stroke (quil/map-range (quil/abs (- z current-pos)) 0 distance color background)))
+      (when flag (quil/stroke 255 50 50))
 
       (quil/begin-shape)
       (doseq [p (take (+ 3 (count points)) (cycle points))]
