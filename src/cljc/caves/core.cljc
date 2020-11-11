@@ -2,6 +2,7 @@
   (:require [caves.math :as math]
             [caves.slice-generator :as slice-generator]
             [caves.draw :as draw]
+            [caves.two-dimensional :as two-dimensional]
 
             [quil.core :as quil :include-macros true]
             [quil.middleware :as quil.mw]
@@ -55,10 +56,10 @@
                      :fps    60
                      :mode   :rgb
                      :debug  #{#_:reset #_:state #_:fps #_:lines}}
-   #_#_:navigation-3d   {:position  [0 0 0]
-                         :straight  [0 0 100]
-                         :up        [0 1 0]
-                         :step-size 5}})
+   :navigation-3d   {:position  [0 0 0]
+                     :straight  [0 0 100]
+                     :up        [0 1 0]
+                     :step-size 5}})
 
 
 (defn new-eccentricity [{:keys [value deviation approx limit]}]
@@ -129,9 +130,9 @@
 
 
 (defn update-state [{{:keys [debug] :as settings} :settings, :as state}]
-  #_(apply quil/camera (mapcat (:navigation-3d state) [:position :straight :up]))
+  (apply quil/camera (mapcat (:navigation-3d state) [:position :straight :up]))
   (-> state
-      #_#_(update-in [:navigation-3d :position Z] + (get-in state [:navigation-3d :step-size]))
+      (update-in [:navigation-3d :position Z] + (get-in state [:navigation-3d :step-size]))
       (update-in [:navigation-3d :straight Z] + (get-in state [:navigation-3d :step-size]))
       (merge (generate state))
       (merge (teleport state))
@@ -166,7 +167,7 @@
       :update     update-state
       :draw       draw-state!
       :renderer   :p3d
-      :navigation-3d {:position  [0 0 0]
+      #_#_:navigation-3d {:position  [0 0 0]
                       :straight  [0 0 100]
                       :up        [0 1 0]
                       :step-size 100}
