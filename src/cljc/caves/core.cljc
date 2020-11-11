@@ -101,16 +101,16 @@
                                (fn [[{wall1 :walls} {wall2 :walls, formations2 :with-formations}]]
                                  (conj (mapv (partial slice-generator/interpolate wall1 wall2)
                                              (rest (range 0 1 (/ 1 lerp-steps))))
-                                       (update-in (vec formations2) [0 Y] int))))
+                                       formations2)))
                               (map-indexed
                                (fn [i points]
                                  (->> i
                                       inc
                                       (* slice-distance)
                                       (+ last-z)
-                                      (repeat (matrix/dimension-count points X))
-                                      (matrix/set-column points Z)))))]
-    (cond-> {:slices (into (vec visible-slices) interpolated)}
+                                      repeat
+                                      (mapv conj points)))))]
+    (cond-> {:slices (into (vec visible-slices) (vec interpolated))}
       (seq new-slices) (-> (assoc :walls (mapv :walls new-slices)) ;; TODO: moving back will cause loss of last wall
                            (assoc :with-formations (mapv :with-formations new-slices))))))
 
@@ -159,6 +159,7 @@
 (defn ^:export run-sketch []
   (let [settings (get-in default-state [:settings])]
     (quil/defsketch caves
+      :host       "caves"
       :title      (:title settings)
       :size       (:size settings)
       :setup      setup!

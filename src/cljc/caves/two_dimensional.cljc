@@ -102,17 +102,21 @@
       (draw/draw-clearance! (get-in state [:debug :clearance]) state))))
 
 
-(defn -main [& args]
+(defn ^:export run-sketch []
   (let [settings (get-in default-state [:settings])]
     (quil/defsketch caves2d
+      :host       "caves"
       :title      (:title settings)
       :size       (:size settings)
       :setup      setup!
       :update     update-state
       :draw       draw-state!
-      :renderer   :java2d
       :middleware (cond-> [quil.mw/fun-mode
                            (mw/mw! :draw #(mw/show-fps! % #?(:cljs (:font settings), :clj (quil/create-font (:font settings) 10))))
                            (mw/mw! :draw #(mw/show-state! (dissoc % :slice :debug :slices :walls :formations) #?(:cljs (:font settings), :clj (quil/create-font (:font settings) 20))))
                            quil.mw/navigation-2d
                            #_(mw/mw! :draw (partial mw/record-gif! "caves" 20 1))]))))
+
+
+(defn -main [& args]
+  (run-sketch))
