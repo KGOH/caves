@@ -74,9 +74,9 @@
                      (math/constrain (- limit) limit))}))
 
 
-(defn generate [{:keys [i slices walls render-steps lerp-steps slice-distance] :as state, :or {i 0}}]
+(defn generate [{:keys [slices walls render-steps lerp-steps slice-distance] :as state}]
   (let [z-coord          (-> state :navigation-3d :position get-z)
-        visible-distance (* 10 (+ lerp-steps render-steps) slice-distance)
+        visible-distance (* (+ lerp-steps render-steps) slice-distance)
         get-slice-z-pos  (comp get-z first)
         behind?          (partial > z-coord)
         visible?         #(<= (- z-coord visible-distance) % (+ z-coord visible-distance))
@@ -94,29 +94,25 @@
                              (slice-generator/generate state))
         last-z           (-> ahead last first (get Z z-coord))
         new-slices       (repeatedly amount-to-gen #(slice-generator/generate state))
-        lerp-step        (/ 1 (- lerp-steps i))
-        compensation     (/ lerp-step (/ 1 lerp-steps))
         interpolated     (->> new-slices
                               (cons last-generated)
                               (partition 2 1)
                               (mapcat
                                (fn [[{wall1 :walls} {wall2 :walls, formations2 :with-formations}]]
                                  (conj (mapv (partial slice-generator/interpolate wall1 wall2)
-                                             (rest (range 0 1 lerp-step)))
-                                       (update-in (vec formations2) [0 Y] int))))
+                                             (rest (range 0 1 (/ 1 lerp-steps))))
+                                       formations2)))
                               (map-indexed
-                               (fn [j points]
-                                 (->> j
+                               (fn [i points]
+                                 (->> i
                                       inc
-                                      (* compensation)
                                       (* slice-distance)
                                       (+ last-z)
                                       (repeat (matrix/dimension-count points X))
                                       (matrix/set-column points Z)))))]
     (cond-> {:slices (into (vec visible-slices) interpolated)}
       (seq new-slices) (-> (assoc :walls (mapv :walls new-slices)) ;; TODO: moving back will cause loss of last wall
-                           (assoc :with-formations (mapv :with-formations new-slices))
-                           (assoc :i (mod (inc i) (dec lerp-steps)))))))
+                           (assoc :with-formations (mapv :with-formations new-slices))))))
 
 
 (defn move-slice [distance slice]
